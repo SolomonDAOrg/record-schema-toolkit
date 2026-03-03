@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "checkJs": true,
+        "target": "ESNext",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "noEmit": true,
+        "allowSyntheticDefaultImports": true,
+        "types": ["node"]
+    },
+    "include": ["**/*.js", "**/*.mjs"],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build",
+        ".yarn",
+        ".git",
+        ".turbo",
+        ".next",
+        "coverage",
+        "**/*.tgz",
+        "server"
+    ]
+}

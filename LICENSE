@@ -1,0 +1,229 @@
+SOLOMON DAO LLC SCHEMA REGISTRY REPOSITORY LICENSE (PERMISSIVE)
+
+Version 1.1 - Effective 03 March 2026
+
+================================================================================
+
+SOLOMON DAO LLC (the "DAO"), a Marshall Islands DAO LLC organized under the
+Decentralized Autonomous Organizations Act of 2022 as amended.
+<https://solomondao.org>
+
+All rights reserved except as expressly granted in this License.
+
+This License applies to Schema Materials (defined below). It is intended to
+make the general schema format (naming conventions, directory layout, file-type
+conventions, metadata shapes, registries, and related specification assets)
+freely usable for Non-Governance Use by anyone, while ensuring:
+
+(a) any Governance Use is governed under the SOLOMON DAO LLC PUBLIC GOVERNANCE
+    REPOSITORY LICENSE (and is restricted to MetaDAO Cohorts unless separately
+    licensed by DAO governance); and
+
+(b) Protocol IP, Governance Materials, and any implementation of Protocol IP
+    remain governed under separate agreements and/or DAO governance actions.
+
+It is a permissive license for Schema Materials for Non-Governance Use. It is
+not an open-source license for Protocol IP, Governance Use, Governance
+Materials, or any implementation of Protocol IP.
+
+================================================================================
+
+PROTOCOL IP FIREWALL
+
+================================================================================
+
+"Protocol" in this License has the same meaning as "Protocol IP" as defined in
+the Company Agreement of SOLOMON DAO LLC - design, documentation, code,
+repositories, and other intellectual property. It does not mean an operating
+business, service, issuer, custodian, counterparty, or other person or entity.
+
+The DAO holds Protocol IP and licenses it under separate agreements and/or DAO
+governance actions that require licensees to comply with applicable law and
+assume responsibility for their own deployments and operations. The DAO does
+not operate, control, administer, or maintain any deployment of Protocol IP and
+shall not be deemed to do so. Licensee conduct is independent and is not
+attributable to the DAO.
+
+Nothing in this License or the Repository Materials constitutes or implies that
+the DAO operates, provides, maintains, or supports any deployment or service.
+
+================================================================================
+
+1. DEFINITIONS
+
+1.1 "Repository" means the source code repository containing this License.
+
+1.2 "Repository Materials" means all files, folders, and content in the
+Repository.
+
+1.3 "Schema Materials" means the specification and registry assets in the
+Repository that define or describe a general-purpose document/schema/registry
+format, including (without limitation): (a) naming conventions, folder
+structures, allowed file types, and formatting rules; (b) schema definitions
+(YAML/JSON/etc.), validation rules, registries, and schema tooling; and (c)
+examples that exist solely to demonstrate the schema format.
+
+1.4 "Governance Use" means using Schema Materials to create, operate,
+administer, execute, or document a governance system or governance process for
+any DAO, collective, foundation, protocol governance body, token governance, or
+similar arrangement, including (without limitation): proposals, resolutions,
+votes, treasury actions, elections, charters, committees/subcommittees, SOPs,
+and any instrument intended to be adopted, relied on, or represented as a
+governance instrument.
+
+1.5 "Non-Governance Use" means any use of Schema Materials that is not
+Governance Use.
+
+1.6 "Governance Materials" means any templates, documents, specifications,
+forms, packs, policies, procedures, or other materials in the Repository that
+are specific to Solomon DAO governance or designed primarily for Governance Use,
+including without limitation: proposals, operational packs, SOPs, charters,
+operating agreements, bylaws, resolutions, notices, governance registries, and
+governance-specific templates or forms, whether included in the Repository
+intentionally or inadvertently.
+
+1.7 "MetaDAO Cohort" means an entity designated as a cohort under the MetaDAO
+governance system (as determined by MetaDAO governance records).
+
+1.8 "Governance Repository" means the Solomon DAO public governance repository
+(as designated by the Solomon DAO governance system from time to time).
+
+1.9 "Governance License" means the license titled "SOLOMON DAO LLC PUBLIC
+GOVERNANCE REPOSITORY LICENSE" as published in the Governance Repository.
+
+1.10 "Implementation" means any deployment, system, product, service, issuer,
+custody setup, market, or other operational arrangement that uses Protocol IP.
+
+================================================================================
+
+2. OWNERSHIP; SCOPE
+
+2.1 The DAO owns (or controls) Protocol IP and Repository Materials. This
+License grants permissions only in Schema Materials, and only as expressly
+stated in Section 3.
+
+2.2 Any access controls, gating, or distribution choices for the Repository are
+separate from this License. Nothing in this License obligates the DAO to make
+the Repository (or any part of it) available.
+
+================================================================================
+
+3. GRANT OF RIGHTS (SCHEMA MATERIALS; NON-GOVERNANCE USE ONLY)
+
+3.1 Subject to the exclusions in Section 4, permission is hereby granted, free
+of charge, to any person obtaining a copy of the Schema Materials to deal in the
+Schema Materials for Non-Governance Use without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Schema Materials, and to permit persons to
+whom the Schema Materials are furnished to do so.
+
+3.2 The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Schema Materials.
+
+3.3 Nothing in this License grants any patent rights.
+
+================================================================================
+
+4. GOVERNANCE USE EXCLUDED; GOVERNANCE LICENSE CONTROLS
+
+4.1 No Governance Use grant. Governance Use is expressly excluded from the grant
+in Section 3. No right to use the Schema Materials for Governance Use is granted
+by this License.
+
+4.2 Governance Use (MetaDAO Cohorts only, unless separately licensed). Any
+permission to use Schema Materials for Governance Use is governed exclusively by
+the Governance License (or another license granted by formal DAO governance
+action). Unless you are a MetaDAO Cohort, you do not receive permission for
+Governance Use under the Governance License without an additional license.
+
+4.3 Governance Materials excluded. Governance Materials are expressly excluded
+from the definition of Schema Materials and are not licensed under this License.
+
+4.4 Conflict/ambiguity. If any file, directory, or content is (or is alleged to
+be) Governance Materials, then (a) the Governance License controls that content,
+and (b) to the extent this License could be interpreted to grant any rights in
+that content or for Governance Use, no such rights are granted.
+
+4.5 No marks. Nothing in this License grants any rights to DAO names, brands,
+marks, or other identifiers, except as required for reasonable and customary
+attribution.
+
+================================================================================
+
+5. SELF-DECLARED GOVERNANCE MATERIALS
+
+5.1 "Self-Declared Governance Materials" means any file or content that
+includes, in its own structured metadata (including YAML/JSON documents or
+front-matter), an explicit license marker indicating the SOLOMON DAO LLC PUBLIC
+GOVERNANCE REPOSITORY LICENSE, including (without limitation) a field named
+"licenseRef" or "license" whose value identifies that license.
+
+5.2 Self-Declared Governance Materials are excluded from this License and are
+governed exclusively by the Governance License. If there is any conflict or
+ambiguity, the Governance License controls for Self-Declared Governance
+Materials.
+
+================================================================================
+
+6. IMPLEMENTATIONS; IP FRAMEWORK PRECEDENCE
+
+6.1 Implementations may incorporate or reference Schema Materials under this
+License for Non-Governance Use. Doing so does not grant any rights in Protocol
+IP beyond what is expressly granted in Section 3.
+
+6.2 Any right to use Protocol IP (including any implementation code, program,
+deployment, or operational framework) is governed only by the applicable IP
+license agreements, service agreements, and/or DAO governance actions (the "IP
+Framework"). If there is any conflict between this License and the IP Framework,
+the IP Framework controls for Protocol IP and Implementations.
+
+================================================================================
+
+7. CONTRIBUTIONS
+
+7.1 "Contribution" means any submission of content to the DAO for inclusion in
+the Repository (including pull requests, patches, issues with attached code,
+or direct submissions).
+
+7.2 By making a Contribution, you represent that you have the right to submit
+it, and you grant to the DAO a perpetual, worldwide, irrevocable, royalty-free,
+transferable license to use, reproduce, modify, display, perform, distribute,
+and otherwise exploit the Contribution, and to sublicense the Contribution as
+part of the Schema Materials under this License.
+
+7.3 The DAO has no obligation to accept any Contribution.
+
+================================================================================
+
+8. THIRD-PARTY AND SEPARATELY LICENSED MATERIALS
+
+8.1 Third-party materials included in the Repository (if any) are provided under
+their respective licenses. This License does not replace or override those
+terms.
+
+8.2 If the Repository includes any files that carry an explicit license header
+or license file indicating different terms, those different terms control for
+those files.
+
+================================================================================
+
+9. DISCLAIMER OF WARRANTY
+
+9.1 THE SCHEMA MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+================================================================================
+
+10. LIMITATION OF LIABILITY
+
+10.1 IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
+OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SCHEMA MATERIALS OR
+THE USE OR OTHER DEALINGS IN THE SCHEMA MATERIALS.
+
+================================================================================
+
+END OF LICENSE
+
+================================================================================

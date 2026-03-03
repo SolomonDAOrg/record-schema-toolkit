@@ -1,0 +1,48 @@
+{
+    "name": "record-schema-toolkit",
+    "version": "1.0.0",
+    "description": "Zero-dependency (Node built-ins only) validator + linter + formatter for the record-schema specification.",
+    "author": "SolomonDAO Archivist",
+    "homepage": "https://github.com/SolomonDAOrg/record-schema-toolkit#readme",
+    "contributors": [
+        {
+            "name": "SolomonDAO Archivist",
+            "url": "https://solomondao.org",
+            "author": true
+        }
+    ],
+    "bugs": {
+        "url": "https://github.com/SolomonDAOrg/record-schema-toolkit/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/SolomonDAOrg/record-schema-toolkit.git"
+    },
+    "private": true,
+    "type": "module",
+    "bin": {
+        "validate": "node ./bin/validate.mjs",
+        "lint": "node ./bin/lint.mjs",
+        "format": "node ./bin/format.mjs",
+        "render": "node ./bin/render.mjs",
+        "chart": "node ./bin/chart.mjs",
+        "generate-index": "node ./bin/generate-index.mjs"
+    },
+    "scripts": {
+        "examples": "node examples/examples.mjs",
+        "test": "node --test tests/**/*.test.mjs",
+        "validate": "node ./bin/validate.mjs",
+        "lint": "node ./bin/lint.mjs",
+        "format": "node ./bin/format.mjs",
+        "render": "node ./bin/render.mjs",
+        "chart": "node ./bin/chart.mjs",
+        "generate-index": "node ./bin/generate-index.mjs"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "packageManager": "yarn@4.2.2+sha512.c44e283c54e02de9d1da8687025b030078c1b9648d2895a65aab8e64225bfb7becba87e1809fc0b4b6778bbd47a1e2ab6ac647de4c5e383a53a7c17db6c3ff4b",
+    "devDependencies": {
+        "@types/node": "25.0.6"
+    }
+}
