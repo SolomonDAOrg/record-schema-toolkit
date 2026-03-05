@@ -74,6 +74,14 @@ const schema = {
         "no-watermark": {
             description: "Disable draft watermark on cover page",
             default: false
+        },
+        watermark: {
+            description: "Enable draft watermark on cover page",
+            default: false
+        },
+        "disable-soft-wrap": {
+            description: "Disable soft wrap for markdown documents",
+            default: false
         }
     },
     values: {
@@ -168,6 +176,11 @@ const schema = {
         "signing-parties": {
             description:
                 'Override signing parties as JSON array, e.g. \'[{"label":"COMPANY:","signatories":[{"name":"Jane Doe","title":"CEO"}]}]\'',
+            default: null,
+            type: "string"
+        },
+        "watermark-text": {
+            description: "Watermark text (default: DRAFT)",
             default: null,
             type: "string"
         }
@@ -621,10 +634,16 @@ function run() {
                     confidentiality:
                         options["cover-confidentiality"] || undefined,
                     document_kind: options["cover-kind"] || undefined,
-                    noWatermark: options["no-watermark"] || false
+                    noWatermark: options["no-watermark"] === true,
+                    watermark: options["watermark"] === true,
+                    watermark_text:
+                        options["watermark"] === true
+                            ? options["watermark-text"] ?? "DRAFT"
+                            : undefined
                 },
                 disable_page_break_rules:
-                    options["disable-page-break-rules"] === true
+                    options["disable-page-break-rules"] === true,
+                disable_soft_wrap: options["disable-soft_wrap"] === true
             });
 
             if (result.success) {
@@ -762,7 +781,14 @@ function run() {
 
             console.log(`Rendering: ${rel_path}`);
 
-            const ast = convertMarkdownToDocument(parseMarkdownDoc(doc.text));
+            const ast = convertMarkdownToDocument(
+                parseMarkdownDoc(
+                    doc.text,
+                    options["disable-soft-wrap"] === true
+                        ? undefined
+                        : { softWrap: true }
+                )
+            );
 
             const result = pipeline.processSingle({
                 id: fileInfo.record_id || "UNKNOWN",
