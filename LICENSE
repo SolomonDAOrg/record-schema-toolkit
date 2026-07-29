@@ -1,6 +1,8 @@
 SOLOMON DAO LLC SCHEMA REGISTRY REPOSITORY LICENSE (PERMISSIVE)
 
 Version 1.1 - Effective 03 March 2026
+Version: 1.1
+Checksum-SHA256: e822c97b1ef2c14df6c7c761c9c0b3e506e6f9f9fc101d22fbf7d91c6d7cf9f6
 
 ================================================================================
 
@@ -224,6 +226,25 @@ THE USE OR OTHER DEALINGS IN THE SCHEMA MATERIALS.
 
 ================================================================================
 
+SCHEDULE A --- GOVERNANCE PATHS (NON-EXHAUSTIVE)
+
+- templates/dao/**
+- profiles/dao-proposals.profile.yaml
+- profiles/sop-registry.profile.yaml
+
+================================================================================
+
 END OF LICENSE
 
 ================================================================================
+
+----------------------------BEGIN DOCUMENT METADATA-----------------------------
+SPDX-LicenseIdentifier: LicenseRef-SOLOMON-DAO-SCHEMA-REGISTRY
+Document-Type: LICENSE
+Title: SOLOMON DAO LLC SCHEMA REGISTRY REPOSITORY LICENSE (PERMISSIVE)
+Version: 1.1
+Effective-Date: 2026-03-03
+Canonical-URL: https://github.com/SolomonDAOrg/licenses/blob/main/LICENSES/LicenseRef-SOLOMON-DAO-SCHEMA-REGISTRY
+Checksum-SHA256: e822c97b1ef2c14df6c7c761c9c0b3e506e6f9f9fc101d22fbf7d91c6d7cf9f6
+Checksum-Surface: license-body-v1
+-----------------------------END DOCUMENT METADATA------------------------------

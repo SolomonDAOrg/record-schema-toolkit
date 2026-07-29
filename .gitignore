@@ -21,3 +21,5 @@ templates
 output/
 
 !.gitkeep
+
+.solomon-font-cache

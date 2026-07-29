@@ -68,6 +68,7 @@ function run() {
     if (profile) {
         issues.push(...repo.validateProfile());
         issues.push(...repo.validateRequiredPaths());
+        issues.push(...repo.validateConfiguredSchemaMaterials());
     } else {
         issues.push({
             severity: "warn",
@@ -93,23 +94,23 @@ function run() {
     stats.records = records.length;
 
     // Load schemas once
-    const metaSchema = repo.getRecordMetaSchema();
+    const metaSchemas = repo.getRecordMetaSchemas();
 
     for (let i = 0; i < records.length; i++) {
         const record = records[i];
 
         // Validate META.yaml Schema
         if (record.metafile) {
-            if (metaSchema) {
-                const schemaErrors = record.metafile.validateSchema(metaSchema);
-                schemaErrors.forEach((err) => {
+            for (let schemaIndex = 0, schemaLen = metaSchemas.length; schemaIndex < schemaLen; schemaIndex++) {
+                const schemaErrors = record.metafile.validateSchema(metaSchemas[schemaIndex]);
+                for (let errorIndex = 0, errorLen = schemaErrors.length; errorIndex < errorLen; errorIndex++) {
                     issues.push({
                         severity: "error",
                         code: "meta.schema",
-                        message: err.message,
+                        message: schemaErrors[errorIndex].message,
                         file: record.rel_path + "/_META.yaml"
                     });
-                });
+                }
             }
 
             // Validate Business Logic (Constraints from Profile buckets)
@@ -140,6 +141,9 @@ function run() {
                     file: record.rel_path
                 });
             }
+
+            issues.push(...repo.validateStructuredDocuments(record));
+            issues.push(...repo.validateLanguageRuleDocuments(record));
         } else {
             issues.push({
                 severity: "error",

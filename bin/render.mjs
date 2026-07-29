@@ -14,7 +14,6 @@ import {
     createLegalKeepTogetherRule
 } from "../lib/ast/pipelines/DocumentPipeline.mjs";
 import { createTwoPassPdfRenderer } from "../lib/ast/renderers/TwoPassPdfRenderer.mjs";
-import { createRenderPackAdapter } from "../lib/ast/adapters/RenderPackAdapter.mjs";
 import { parseMarkdownDoc } from "../lib/index.mjs";
 import { convertMarkdownToDocument } from "../lib/ast/converters/MarkdownToAstConverter.mjs";
 
@@ -463,20 +462,14 @@ function run() {
         }
     }
 
-    const adapter = createRenderPackAdapter(
-        /** @type {import("../lib/ast/types/core.mjs").RenderPackData} */ (
-            renderPack.data
-        )
-    );
-
     // Initialize Services
     const indManager = new IndManager(registry);
     const packetGenerator = new FilingPacketGenerator(
         repo,
-        adapter,
         indManager,
         renderPack,
-        verbose
+        verbose,
+        Boolean(options["render-pack"])
     );
 
     // 3. Select Records with Predicate
@@ -718,7 +711,7 @@ function run() {
             }
 
             // --- 2. Configure Renderer ---
-            const config = adapter.resolveForFile({
+            const config = renderPack.resolveForFile({
                 rel_path: rel_path,
                 doc_type: fileInfo.doc_type,
                 ext: fileInfo.ext

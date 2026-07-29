@@ -21,12 +21,14 @@
     "private": true,
     "type": "module",
     "bin": {
-        "validate": "node ./bin/validate.mjs",
-        "lint": "node ./bin/lint.mjs",
-        "format": "node ./bin/format.mjs",
-        "render": "node ./bin/render.mjs",
         "chart": "node ./bin/chart.mjs",
-        "generate-index": "node ./bin/generate-index.mjs"
+        "format": "node ./bin/format.mjs",
+        "generate-index": "node ./bin/generate-index.mjs",
+        "lint": "node ./bin/lint.mjs",
+        "render": "node ./bin/render.mjs",
+        "validate": "node ./bin/validate.mjs",
+        "apply-language-rules": "node ./bin/apply-language-rules.mjs",
+        "verify-license": "node ./bin/verify-license.mjs"
     },
     "scripts": {
         "examples": "node examples/examples.mjs",
@@ -36,7 +38,9 @@
         "format": "node ./bin/format.mjs",
         "render": "node ./bin/render.mjs",
         "chart": "node ./bin/chart.mjs",
-        "generate-index": "node ./bin/generate-index.mjs"
+        "generate-index": "node ./bin/generate-index.mjs",
+        "apply-language-rules": "node ./bin/apply-language-rules.mjs",
+        "verify-license": "node ./bin/verify-license.mjs"
     },
     "engines": {
         "node": ">=18"
