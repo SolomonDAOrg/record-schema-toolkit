@@ -21,14 +21,14 @@
     "private": true,
     "type": "module",
     "bin": {
-        "chart": "node ./bin/chart.mjs",
-        "format": "node ./bin/format.mjs",
-        "generate-index": "node ./bin/generate-index.mjs",
-        "lint": "node ./bin/lint.mjs",
-        "render": "node ./bin/render.mjs",
-        "validate": "node ./bin/validate.mjs",
-        "apply-language-rules": "node ./bin/apply-language-rules.mjs",
-        "verify-license": "node ./bin/verify-license.mjs"
+        "chart": "./bin/chart.mjs",
+        "format": "./bin/format.mjs",
+        "generate-index": "./bin/generate-index.mjs",
+        "lint": "./bin/lint.mjs",
+        "render": "./bin/render.mjs",
+        "validate": "./bin/validate.mjs",
+        "apply-language-rules": "./bin/apply-language-rules.mjs",
+        "verify-license": "./bin/verify-license.mjs"
     },
     "scripts": {
         "examples": "node examples/examples.mjs",
