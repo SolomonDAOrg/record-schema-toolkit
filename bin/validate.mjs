@@ -8,6 +8,9 @@ import {
     runAssertions,
     assertionPacksFromProfile
 } from "../lib/record-schema/assertions/AssertionRunner.mjs";
+import {
+    validateAssertionPackDocuments
+} from "../lib/record-schema/assertions/AssertionPack.mjs";
 
 const SCRIPT_NAME = "validate";
 const DESCRIPTION =
@@ -30,8 +33,17 @@ const schema = {
                 "Run the assertion packs the profile declares in rules.assertion_packs",
             default: true
         },
+        "no-assertions": {
+            description:
+                "Run structural and assertion-pack schema validation without executing corpus assertions",
+            default: false
+        },
         advisory: {
             description: "Promote advisory assertion findings to errors",
+            default: false
+        },
+        production: {
+            description: "Alias for --mode production",
             default: false
         }
     },
@@ -62,6 +74,11 @@ const schema = {
             description: "Additional schema-material roots (comma-separated)",
             default: [],
             type: "array"
+        },
+        mode: {
+            description: "Named assertion mode",
+            default: "development",
+            type: "string"
         }
     }
 };
@@ -218,19 +235,55 @@ function run() {
         stats.documents += docs.length;
     }
 
-    // 5. Assertions
+    // 5. Assertion-pack authoring schema. The engine's runtime validation
+    // catches executable shape errors; the normative schema additionally
+    // rejects unknown fields and malformed reports/materializers.
+    if (profile) {
+        const packs = assertionPacksFromProfile(profile.data);
+        if (packs.length > 0) {
+            const assertionPackSchema = repo.loadSchemaMaterial(
+                "schema/assertion.pack.schema.json"
+            );
+            if (assertionPackSchema === null) {
+                issues.push({
+                    severity: options["require-base-schemas"] ? "error" : "warn",
+                    code: "assertion.pack.schema.unresolved",
+                    message:
+                        "schema/assertion.pack.schema.json could not be resolved; assertion packs received runtime validation only",
+                    file: "schema/assertion.pack.schema.json"
+                });
+            } else {
+                const packSchemaErrors = validateAssertionPackDocuments(
+                    root_dir,
+                    packs,
+                    assertionPackSchema
+                );
+                for (let i = 0, len = packSchemaErrors.length; i < len; i++) {
+                    issues.push({
+                        severity: "error",
+                        code: "assertion.pack.schema",
+                        message: packSchemaErrors[i],
+                        file: packSchemaErrors[i].split(":", 1)[0]
+                    });
+                }
+            }
+        }
+    }
+
+    // 6. Assertions
     //
     // Structural validation has now answered every question that can be asked
     // of one document on its own. The questions that only exist between two
     // documents - an ordinal two records disagree about, a width restated
     // somewhere nothing reads - are the assertion packs, and they are declared
     // by the repository rather than supplied by whoever invoked the toolkit.
-    if (options.assertions && profile) {
+    if (options.assertions && !options["no-assertions"] && profile) {
         const packs = assertionPacksFromProfile(profile.data);
         if (packs.length > 0) {
             const assertions = runAssertions(root_dir, {
                 packs,
-                promoteAdvisory: options.advisory
+                promoteAdvisory: options.advisory,
+                mode: options.production ? "production" : options.mode
             });
             stats.assertions = assertions.executed.length;
             stats.assertion_findings = assertions.findings.length;

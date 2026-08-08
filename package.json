@@ -21,6 +21,7 @@
     "private": true,
     "type": "module",
     "bin": {
+        "record-schema-toolkit": "./bin/record-schema-toolkit.mjs",
         "chart": "./bin/chart.mjs",
         "format": "./bin/format.mjs",
         "generate-index": "./bin/generate-index.mjs",
@@ -29,7 +30,10 @@
         "validate": "./bin/validate.mjs",
         "apply-language-rules": "./bin/apply-language-rules.mjs",
         "verify-license": "./bin/verify-license.mjs",
-        "assert": "./bin/assert.mjs"
+        "assert": "./bin/assert.mjs",
+        "materialize": "./bin/materialize.mjs",
+        "report": "./bin/report.mjs",
+        "doctor": "./bin/doctor.mjs"
     },
     "scripts": {
         "examples": "node examples/examples.mjs",
@@ -42,7 +46,10 @@
         "generate-index": "node ./bin/generate-index.mjs",
         "apply-language-rules": "node ./bin/apply-language-rules.mjs",
         "verify-license": "node ./bin/verify-license.mjs",
-        "assert": "node ./bin/assert.mjs"
+        "assert": "node ./bin/assert.mjs",
+        "materialize": "node ./bin/materialize.mjs",
+        "report": "node ./bin/report.mjs",
+        "doctor": "node ./bin/doctor.mjs"
     },
     "engines": {
         "node": ">=18"

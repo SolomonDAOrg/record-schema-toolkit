@@ -29,8 +29,17 @@ Zero-dependency (Node built-ins only) validator + linter + formatter for the
 
 ## CLI
 
-Each command is a standalone script under `bin/`. All paths are repo-relative
-unless absolute.
+The installed package exposes one umbrella command and standalone binaries
+for every subcommand:
+
+```bash
+record-schema-toolkit --help
+record-schema-toolkit validate --root .
+record-schema-toolkit assert --root . --fail-on-vacuous
+```
+
+The same commands remain available as standalone scripts under `bin/`. All
+paths are repository-relative unless documented otherwise.
 
 ### validate
 
@@ -50,6 +59,11 @@ node ./bin/validate.mjs --root ./my-records --schema-roots ../record-schema,../r
 | `--schema-roots` | `--schema-root`, `--schema-material-root`, `--schema-material-roots` | `[]` | Additional schema-material roots (comma-separated) |
 | `--json` | | `false` | Machine-readable JSON output |
 | `--fail-on-warn` | | `true` | Exit non-zero on warnings |
+| `--require-base-schemas` | | `false` | Fail when normative base schema material cannot be resolved |
+| `--assertions` | | `true` | Execute profile-declared assertion packs after structural validation |
+| `--no-assertions` | | `false` | Validate structures and assertion-pack documents without executing rules |
+| `--mode` | | `development` | Named assertion execution mode |
+| `--production` | | `false` | Alias for `--mode production` |
 
 Profiles may type JSON/YAML record artefacts with `rules.structured_document_schemas`. Deployment evidence profiles can use this to validate a singleton `EVD` dossier containing the normalized artifact, transaction, action, receipt, and disclosure-policy data rendered into a PDF packet:
 
@@ -103,7 +117,9 @@ node ./bin/assert.mjs --root . --packs rules/20-closure.rules.yaml --only IMPORT
 | `--advisory` | | `false` | Promote advisory findings to errors |
 | `--list` | | `false` | List the rules that would run, then exit |
 | `--summary` | | `false` | Finding counts per rule, without the findings |
-| `--json` | | `false` | Machine-readable output |
+| `--mode` | | `development` | Named execution mode |
+| `--production` | | `false` | Alias for `--mode production` |
+| `--json` | | `false` | Machine-readable output; counters remain inside the JSON document even with `--stats` |
 
 `validate` runs the same packs at the end of its own run, so a repository
 declaring them needs only the one command. `assert` is for working on rules.
@@ -127,6 +143,46 @@ outcome when a rule is first written. `--stats` reports, per rule:
 
 Writing a rule and watching it pass proves nothing. Break the thing it checks
 and watch it fail.
+
+### materialize
+
+Compute deterministic outputs declared by assertion rules. The default is a
+read-only drift check; `--write` is mandatory for filesystem changes. Supported
+operations are digest manifests, one-field YAML derivations, reachability
+baselines, and semantics-preserving rewrites.
+
+```bash
+record-schema-toolkit materialize --root . --only MANIFEST
+record-schema-toolkit materialize --root . --only MANIFEST --write
+```
+
+`--packs` or the profile selects packs, `--only` limits rule ids, and `--json`
+returns the computed outputs and drift state. Every destination is contained by
+the repository root.
+
+### report
+
+Render a named report declared in an assertion pack. Reports use the same
+selectors, tables, expressions, and reach analysis as validation; they cannot
+load repository-specific code.
+
+```bash
+record-schema-toolkit report --root . --report storage
+record-schema-toolkit report --root . --report storage --verbose
+record-schema-toolkit report --root . --report storage --json
+```
+
+### doctor
+
+Diagnose the assertion runtime, pack/import graph, rules, reports, and
+materializers without relying on a downstream tool directory. `--deep` executes
+every corpus rule, report, and read-only materializer; `--production` diagnoses
+production-mode selection and severity.
+
+```bash
+record-schema-toolkit doctor --root .
+record-schema-toolkit doctor --root . --deep --production
+```
 
 ### lint
 
@@ -331,7 +387,7 @@ for customary attribution.
 
 ## Language rule application
 
-The toolkit can now apply downstream language-rule registries to source trees.
+The toolkit applies downstream language-rule registries to source trees.
 
 Layering stays separated:
 

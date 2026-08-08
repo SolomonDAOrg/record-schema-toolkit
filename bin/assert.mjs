@@ -12,6 +12,7 @@
 import { resolve } from "node:path";
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
+import { AssertionPack } from "../lib/record-schema/assertions/AssertionPack.mjs";
 import {
     runAssertions,
     assertionPacksFromProfile
@@ -48,6 +49,10 @@ const schema = {
         "fail-on-vacuous": {
             description: "Exit non-zero when any rule selected no rows",
             default: false
+        },
+        production: {
+            description: "Alias for --mode production",
+            default: false
         }
     },
     values: {
@@ -79,6 +84,11 @@ const schema = {
             description: "Skip these rule ids (comma-separated)",
             default: [],
             type: "array"
+        },
+        mode: {
+            description: "Named assertion mode",
+            default: "development",
+            type: "string"
         }
     }
 };
@@ -119,21 +129,63 @@ function run() {
         process.exit(2);
     }
 
+    const mode = options.production ? "production" : options.mode;
+
+    if (options.list) {
+        const loaded = AssertionPack.load(root_dir, packs);
+        if (loaded.errors.length > 0) {
+            for (let i = 0, len = loaded.errors.length; i < len; i++) {
+                console.error(loaded.errors[i]);
+            }
+            process.exit(2);
+        }
+        const allRules = loaded.pack.getRules();
+        const rules = [];
+        const skipped = [];
+        for (let i = 0, len = allRules.length; i < len; i++) {
+            const rule = allRules[i];
+            const declaredModes = rule.modes === undefined
+                ? null
+                : Array.isArray(rule.modes)
+                    ? rule.modes.map(String)
+                    : [String(rule.modes)];
+            const enabled = rule.enabled !== false &&
+                (declaredModes === null || declaredModes.includes(mode)) &&
+                (options.only.length === 0 || options.only.includes(rule.id)) &&
+                !options.skip.includes(rule.id);
+            if (enabled) rules.push(rule.id);
+            else skipped.push(rule.id);
+        }
+        if (options.json) {
+            console.log(
+                JSON.stringify(
+                    {
+                        mode,
+                        packs: loaded.pack.getPackIds(),
+                        rules,
+                        skipped
+                    },
+                    null,
+                    2
+                )
+            );
+        } else {
+            for (let i = 0, len = rules.length; i < len; i++) {
+                console.log(rules[i]);
+            }
+        }
+        return;
+    }
+
     console.error(`Running corpus assertions from ${packs.join(", ")}...`);
 
     const result = runAssertions(root_dir, {
         packs,
         only: options.only.length > 0 ? options.only : undefined,
         skip: options.skip,
-        promoteAdvisory: options.advisory
+        promoteAdvisory: options.advisory,
+        mode
     });
-
-    if (options.list) {
-        for (let i = 0, len = result.executed.length; i < len; i++) {
-            console.log(result.executed[i]);
-        }
-        return;
-    }
 
     // A ban passes by matching nothing, so matches are not the vacuity signal.
     // Scope is: a rule that examined no nodes was pointed past the corpus.
@@ -149,7 +201,7 @@ function run() {
         return resolve !== undefined && resolve.uses === 0;
     });
 
-    if (options.stats) {
+    if (options.stats && !options.json) {
         printStats(result, vacuous);
     }
 
@@ -157,6 +209,7 @@ function run() {
         console.log(
             JSON.stringify(
                 {
+                    mode,
                     packs: result.packs,
                     executed: result.executed.length,
                     skipped: result.skipped.length,
