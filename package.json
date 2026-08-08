@@ -28,11 +28,12 @@
         "render": "./bin/render.mjs",
         "validate": "./bin/validate.mjs",
         "apply-language-rules": "./bin/apply-language-rules.mjs",
-        "verify-license": "./bin/verify-license.mjs"
+        "verify-license": "./bin/verify-license.mjs",
+        "assert": "./bin/assert.mjs"
     },
     "scripts": {
         "examples": "node examples/examples.mjs",
-        "test": "node --test tests/**/*.test.mjs",
+        "test": "node --test \"tests/**/*.test.mjs\"",
         "validate": "node ./bin/validate.mjs",
         "lint": "node ./bin/lint.mjs",
         "format": "node ./bin/format.mjs",
@@ -40,7 +41,8 @@
         "chart": "node ./bin/chart.mjs",
         "generate-index": "node ./bin/generate-index.mjs",
         "apply-language-rules": "node ./bin/apply-language-rules.mjs",
-        "verify-license": "node ./bin/verify-license.mjs"
+        "verify-license": "node ./bin/verify-license.mjs",
+        "assert": "node ./bin/assert.mjs"
     },
     "engines": {
         "node": ">=18"

@@ -20,6 +20,12 @@ Zero-dependency (Node built-ins only) validator + linter + formatter for the
     `is_root_file`
   - enforces: canonical-ascii normalization, line-width, required
     header/footer shapes
+- Generic extension and schema-material support
+  - preserves profile `extensions` as opaque caller-defined values
+  - accepts explicit schema-material roots without binding the toolkit to a
+    downstream repository
+  - resolves base schemas, profiles, registries, and packs in deterministic
+    root order
 
 ## CLI
 
@@ -33,6 +39,7 @@ Validate record schema, registry integrity, and profile rules (read-only).
 ```bash
 node ./bin/validate.mjs
 node ./bin/validate.mjs --root . --profile registry.profile.yaml --registry registry.yaml
+node ./bin/validate.mjs --root ./my-records --schema-roots ../record-schema,../retained-schemas
 ```
 
 | Option | Alias | Default | Description |
@@ -40,6 +47,7 @@ node ./bin/validate.mjs --root . --profile registry.profile.yaml --registry regi
 | `--root` | `-r` | `.` | Repository root |
 | `--profile` | `-p` | `registry.profile.yaml` | Registry profile YAML path |
 | `--registry` | | `registry.yaml` | Registry YAML path |
+| `--schema-roots` | `--schema-root`, `--schema-material-root`, `--schema-material-roots` | `[]` | Additional schema-material roots (comma-separated) |
 | `--json` | | `false` | Machine-readable JSON output |
 | `--fail-on-warn` | | `true` | Exit non-zero on warnings |
 
@@ -57,10 +65,68 @@ rules:
 
 `required: true` supplies a minimum of one unless `min_count` is explicit. `min_count` and `max_count` enforce document multiplicity; machine-authoritative PLAN/MAN/ATT/VER/EVD documents should generally use `max_count: 1`. Configured schema paths must resolve to regular, non-symlink files contained by the active repository.
 
-The validator also applies every `rules.meta_policies.overlay_schema_paths` schema in addition to the base META schema. Schema materials are resolved from the active repository first, then configured retained/fallback roots. Formatting and render pack imports use the same root search order, allowing an archived evidence batch to remain self-contained while still supporting a separate schema checkout during authoring.
+The validator also applies every `rules.meta_policies.overlay_schema_paths` schema in addition to the base META schema. Base schemas and discovered profiles, registries, and packs are resolved from the active repository first, then explicit `--schema-roots`, then bundled fallback locations. Profile-declared overlay and structured-document schema paths resolve relative to the schema-material root that owns the profile; they reject absolute paths, traversal, symlinks, and non-regular files.
+
+Profile `extensions` are intentionally opaque. `Profile.getExtensions()`, `Profile.getExtension(name)`, and `Profile.getExtensionEntries()` expose caller-defined values without recognizing names, fields, series codes, record families, or downstream paths. Extension shape belongs in schema material; extension-specific semantic validation belongs in the downstream consumer or adapter, not in this toolkit.
+
+When fallback formatting packs are discovered rather than explicitly declared, identity-bearing repositories only load packs whose filenames match an ID declared by `record_schema.provides`. This prevents unrelated packs in a shared schema-material root from being applied implicitly.
 
 When `render --render-pack <path>` is used, that pack is authoritative for packet generation; repository discovery cannot replace it with another render family. Filing packet output directories are created recursively, and the resolved target's page size and orientation are propagated to both layout and PDF rendering.
 Backslash-escaped Markdown metacharacters remain literal during inline parsing. Pipe-table parsing consumes the escape only for `\|`; escapes for underscores, asterisks, backticks, brackets, parentheses, and backslashes are preserved for inline parsing so machine evidence values render exactly.
+
+### assert
+
+Run corpus assertion packs: the cross-document checks that only exist between two
+documents. `validate` answers questions about one document at a time - naming,
+metadata, per-document schema. An assertion pack carries the rest: an ordinal
+two records disagree about, a width restated somewhere nothing reads, a record
+nothing reaches.
+
+Packs are declared by the repository in `rules.assertion_packs`, so the usual
+invocation names none.
+
+```bash
+node ./bin/assert.mjs --root .
+node ./bin/assert.mjs --root . --stats --fail-on-vacuous
+node ./bin/assert.mjs --root . --packs rules/20-closure.rules.yaml --only IMPORT_UNKNOWN
+```
+
+| Option | Alias | Default | Description |
+|---|---|---|---|
+| `--root` | `-r` | `.` | Repository root |
+| `--profile` | `-p` | discovered | Registry profile YAML path |
+| `--packs` | `--pack`, `--assertions` | profile's declared packs | Assertion pack paths (comma-separated) |
+| `--only` | | `[]` | Run only these rule ids |
+| `--skip` | | `[]` | Skip these rule ids |
+| `--stats` | | `false` | Per-rule accounting (see below) |
+| `--fail-on-vacuous` | | `false` | Exit non-zero when a rule examined, joined, or resolved nothing |
+| `--advisory` | | `false` | Promote advisory findings to errors |
+| `--list` | | `false` | List the rules that would run, then exit |
+| `--summary` | | `false` | Finding counts per rule, without the findings |
+| `--json` | | `false` | Machine-readable output |
+
+`validate` runs the same packs at the end of its own run, so a repository
+declaring them needs only the one command. `assert` is for working on rules.
+
+#### Why `--stats` exists
+
+A rule that reports clean has either looked and found nothing, or never looked.
+Nothing in the output distinguishes those, and the second is the more common
+outcome when a rule is first written. `--stats` reports, per rule:
+
+- **scope** - nodes examined. A ban passes *by* matching nothing, so matches are
+  not the signal; scope is. A rule with scope zero was pointed past the corpus.
+- **matched** - rows that survived the predicate.
+- **joined** - for `agree` rules, keys present on both sides. Both sides can
+  select hundreds of rows and share no key at all, which no scope count reveals.
+- **uses / defs** - for `resolve` rules, each side separately. A rule selecting
+  three hundred declarations and zero uses reports clean, and one combined
+  number shows three hundred.
+
+`--fail-on-vacuous` turns all four into an exit status.
+
+Writing a rule and watching it pass proves nothing. Break the thing it checks
+and watch it fail.
 
 ### lint
 
@@ -69,6 +135,7 @@ Lint records for formatting, style, and metadata issues.
 ```bash
 node ./bin/lint.mjs
 node ./bin/lint.mjs --root . --packs base.pack.json,dao.pack.json --registry registry.yaml
+node ./bin/lint.mjs --root ./my-records --schema-roots ../record-schema,../retained-schemas
 ```
 
 | Option | Alias | Default | Description |
@@ -76,6 +143,7 @@ node ./bin/lint.mjs --root . --packs base.pack.json,dao.pack.json --registry reg
 | `--root` | `-r` | `.` | Repository root |
 | `--packs` | | `[]` | Formatting pack JSON paths (comma-separated) |
 | `--registry` | | `null` | Registry YAML path |
+| `--schema-roots` | `--schema-root`, `--schema-material-root`, `--schema-material-roots` | `[]` | Additional schema-material roots (comma-separated) |
 | `--json` | | `false` | Machine-readable JSON output |
 
 ### format

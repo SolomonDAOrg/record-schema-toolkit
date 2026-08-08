@@ -3,6 +3,11 @@
 import { resolve } from "node:path";
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
+import { deduplicateIssues } from "../lib/record-schema/util/issues.mjs";
+import {
+    runAssertions,
+    assertionPacksFromProfile
+} from "../lib/record-schema/assertions/AssertionRunner.mjs";
 
 const SCRIPT_NAME = "validate";
 const DESCRIPTION =
@@ -14,6 +19,20 @@ const schema = {
         "fail-on-warn": {
             description: "Exit non-zero on warnings",
             default: true
+        },
+        "require-base-schemas": {
+            description:
+                "Fail if any base schema material cannot be resolved from a schema root",
+            default: false
+        },
+        assertions: {
+            description:
+                "Run the assertion packs the profile declares in rules.assertion_packs",
+            default: true
+        },
+        advisory: {
+            description: "Promote advisory assertion findings to errors",
+            default: false
         }
     },
     values: {
@@ -33,6 +52,16 @@ const schema = {
             description: "Registry YAML path (repo-relative)",
             default: "registry.yaml",
             type: "string"
+        },
+        "schema-roots": {
+            aliases: [
+                "schema-root",
+                "schema-material-roots",
+                "schema-material-root"
+            ],
+            description: "Additional schema-material roots (comma-separated)",
+            default: [],
+            type: "array"
         }
     }
 };
@@ -43,10 +72,15 @@ const options = CLI.handleCLI({
     schema
 });
 const root_dir = resolve(process.cwd(), options.root);
+const schema_material_roots = options["schema-roots"].map((schema_root) =>
+    resolve(process.cwd(), schema_root)
+);
 
 function run() {
     // 1. Initialize Repository — auto-discovers root, profile, registry, packs
-    const repo = Repository.fromFolder(root_dir);
+    const repo = Repository.fromFolder(root_dir, {
+        schemaMaterialRoots: schema_material_roots
+    });
 
     // Override with explicit CLI args if provided
     if (options.profile !== "registry.profile.yaml") {
@@ -63,6 +97,22 @@ function run() {
     const stats = { records: 0, documents: 0 };
 
     console.error("Validating repository structure and schemas...");
+
+    // Base schema material is resolved from the repository, then --schema-roots,
+    // then a sibling ../record-schema next to the toolkit. When none of those
+    // hold, the schema simply is not there and every check that depends on it is
+    // skipped without comment - a corpus missing a required META field validates
+    // clean. Say so rather than reporting an unqualified pass.
+    const unresolvedBaseSchemas = repo.getUnresolvedBaseSchemaMaterials();
+    for (let i = 0, len = unresolvedBaseSchemas.length; i < len; i++) {
+        const entry = unresolvedBaseSchemas[i];
+        issues.push({
+            severity: options["require-base-schemas"] ? "error" : "warn",
+            code: "schema.material.unresolved",
+            message: `${entry.relative_path} did not resolve from any schema root, leaving ${entry.purpose} unchecked; pass --schema-roots <path-to-record-schema>`,
+            file: entry.relative_path
+        });
+    }
 
     // 3. Validate Global Configs (Profile & Registry schemas)
     if (profile) {
@@ -101,9 +151,19 @@ function run() {
 
         // Validate META.yaml Schema
         if (record.metafile) {
-            for (let schemaIndex = 0, schemaLen = metaSchemas.length; schemaIndex < schemaLen; schemaIndex++) {
-                const schemaErrors = record.metafile.validateSchema(metaSchemas[schemaIndex]);
-                for (let errorIndex = 0, errorLen = schemaErrors.length; errorIndex < errorLen; errorIndex++) {
+            for (
+                let schemaIndex = 0, schemaLen = metaSchemas.length;
+                schemaIndex < schemaLen;
+                schemaIndex++
+            ) {
+                const schemaErrors = record.metafile.validateSchema(
+                    metaSchemas[schemaIndex]
+                );
+                for (
+                    let errorIndex = 0, errorLen = schemaErrors.length;
+                    errorIndex < errorLen;
+                    errorIndex++
+                ) {
                     issues.push({
                         severity: "error",
                         code: "meta.schema",
@@ -158,16 +218,53 @@ function run() {
         stats.documents += docs.length;
     }
 
-    // 5. Output
-    if (options.json) {
-        console.log(JSON.stringify({ stats, issues }, null, 2));
-    } else {
-        printHumanReadable(stats, issues);
+    // 5. Assertions
+    //
+    // Structural validation has now answered every question that can be asked
+    // of one document on its own. The questions that only exist between two
+    // documents - an ordinal two records disagree about, a width restated
+    // somewhere nothing reads - are the assertion packs, and they are declared
+    // by the repository rather than supplied by whoever invoked the toolkit.
+    if (options.assertions && profile) {
+        const packs = assertionPacksFromProfile(profile.data);
+        if (packs.length > 0) {
+            const assertions = runAssertions(root_dir, {
+                packs,
+                promoteAdvisory: options.advisory
+            });
+            stats.assertions = assertions.executed.length;
+            stats.assertion_findings = assertions.findings.length;
+
+            for (let i = 0, len = assertions.findings.length; i < len; i++) {
+                const finding = assertions.findings[i];
+                issues.push({
+                    severity:
+                        finding.severity === "warning"
+                            ? "warn"
+                            : finding.severity,
+                    code: `assert.${finding.rule}`,
+                    message: finding.message,
+                    file: finding.file ?? undefined
+                });
+            }
+        }
     }
 
-    // 6. Exit Code
-    const errorCount = issues.filter((i) => i.severity === "error").length;
-    const warnCount = issues.filter((i) => i.severity === "warn").length;
+    // 6. Output
+    const unique_issues = deduplicateIssues(issues);
+    if (options.json) {
+        console.log(JSON.stringify({ stats, issues: unique_issues }, null, 2));
+    } else {
+        printHumanReadable(stats, unique_issues);
+    }
+
+    // 7. Exit Code
+    const errorCount = unique_issues.filter(
+        (issue) => issue.severity === "error"
+    ).length;
+    const warnCount = unique_issues.filter(
+        (issue) => issue.severity === "warn"
+    ).length;
 
     if (errorCount > 0 || (options["fail-on-warn"] && warnCount > 0)) {
         process.exit(1);
@@ -176,7 +273,11 @@ function run() {
 
 function printHumanReadable(stats, issues) {
     console.log(
-        `Checked ${stats.records} records, ${stats.documents} documents.`
+        `Checked ${stats.records} records, ${stats.documents} documents${
+            stats.assertions === undefined
+                ? ""
+                : `, ${stats.assertions} assertions`
+        }.`
     );
 
     if (issues.length === 0) {

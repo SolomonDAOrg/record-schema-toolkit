@@ -3,6 +3,7 @@
 import { resolve } from "node:path";
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
+import { deduplicateIssues } from "../lib/record-schema/util/issues.mjs";
 
 const SCRIPT_NAME = "lint";
 const DESCRIPTION =
@@ -28,6 +29,16 @@ const schema = {
             description: "Registry YAML path (repo-relative)",
             default: null,
             type: "string"
+        },
+        "schema-roots": {
+            aliases: [
+                "schema-root",
+                "schema-material-roots",
+                "schema-material-root"
+            ],
+            description: "Additional schema-material roots (comma-separated)",
+            default: [],
+            type: "array"
         }
     }
 };
@@ -38,9 +49,14 @@ const options = CLI.handleCLI({
     schema
 });
 const root_dir = resolve(process.cwd(), options.root);
+const schema_material_roots = options["schema-roots"].map((schema_root) =>
+    resolve(process.cwd(), schema_root)
+);
 
 function run() {
-    const repo = Repository.fromFolder(root_dir);
+    const repo = Repository.fromFolder(root_dir, {
+        schemaMaterialRoots: schema_material_roots
+    });
 
     if (options.packs && options.packs.length > 0) {
         repo.loadPacks(options.packs);
@@ -119,11 +135,12 @@ function run() {
         }
     }
 
+    const unique_issues = deduplicateIssues(issues);
     if (options.json) {
-        console.log(JSON.stringify({ issues }, null, 2));
+        console.log(JSON.stringify({ issues: unique_issues }, null, 2));
     } else {
-        for (let i = 0, len = issues.length; i < len; i++) {
-            const issue = issues[i];
+        for (let i = 0, len = unique_issues.length; i < len; i++) {
+            const issue = unique_issues[i];
             const loc = issue.line ? `:${issue.line}` : "";
             console.log(
                 `${issue.file}${loc}: [${issue.severity.toUpperCase()}] ${
@@ -131,14 +148,14 @@ function run() {
                 } (${issue.code})`
             );
         }
-        if (issues.length === 0) {
+        if (unique_issues.length === 0) {
             console.log("No lint issues found.");
         } else {
-            console.log(`\nFound ${issues.length} issues.`);
+            console.log(`\nFound ${unique_issues.length} issues.`);
         }
     }
 
-    if (issues.some((i) => i.severity === "error")) {
+    if (unique_issues.some((issue) => issue.severity === "error")) {
         process.exit(1);
     }
 }
