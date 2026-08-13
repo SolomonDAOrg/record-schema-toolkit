@@ -121,8 +121,13 @@ node ./bin/assert.mjs --root . --packs rules/20-closure.rules.yaml --only IMPORT
 | `--production` | | `false` | Alias for `--mode production` |
 | `--json` | | `false` | Machine-readable output; counters remain inside the JSON document even with `--stats` |
 
-`validate` runs the same packs at the end of its own run, so a repository
-declaring them needs only the one command. `assert` is for working on rules.
+`validate` runs the same packs as part of its own run, so a repository declaring
+them needs only the one command. `assert` is for working on rules.
+
+The aggregate validator executes the assertion phase in a disposable process
+before structural validation. The parsed corpus index is released when that
+process exits, so the structural repository and assertion index do not
+accumulate in one heap.
 
 #### Why `--stats` exists
 

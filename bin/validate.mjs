@@ -5,9 +5,9 @@ import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
 import { deduplicateIssues } from "../lib/record-schema/util/issues.mjs";
 import {
-    runAssertions,
     assertionPacksFromProfile
 } from "../lib/record-schema/assertions/AssertionRunner.mjs";
+import { runAssertionsIsolated } from "../lib/record-schema/assertions/AssertionProcess.mjs";
 import {
     validateAssertionPackDocuments
 } from "../lib/record-schema/assertions/AssertionPack.mjs";
@@ -94,6 +94,8 @@ const schema_material_roots = options["schema-roots"].map((schema_root) =>
 );
 
 function run() {
+    const assertionResult = executeAssertions();
+
     // 1. Initialize Repository — auto-discovers root, profile, registry, packs
     const repo = Repository.fromFolder(root_dir, {
         schemaMaterialRoots: schema_material_roots
@@ -270,36 +272,27 @@ function run() {
         }
     }
 
-    // 6. Assertions
-    //
-    // Structural validation has now answered every question that can be asked
-    // of one document on its own. The questions that only exist between two
-    // documents - an ordinal two records disagree about, a width restated
-    // somewhere nothing reads - are the assertion packs, and they are declared
-    // by the repository rather than supplied by whoever invoked the toolkit.
-    if (options.assertions && !options["no-assertions"] && profile) {
-        const packs = assertionPacksFromProfile(profile.data);
-        if (packs.length > 0) {
-            const assertions = runAssertions(root_dir, {
-                packs,
-                promoteAdvisory: options.advisory,
-                mode: options.production ? "production" : options.mode
-            });
-            stats.assertions = assertions.executed.length;
-            stats.assertion_findings = assertions.findings.length;
+    // 6. Merge assertion findings produced by the disposable assertion phase.
+    // The assertion index is not retained beside the structural repository.
+    if (assertionResult !== null) {
+        stats.assertions = assertionResult.executed.length;
+        stats.assertion_findings = assertionResult.findings.length;
 
-            for (let i = 0, len = assertions.findings.length; i < len; i++) {
-                const finding = assertions.findings[i];
-                issues.push({
-                    severity:
-                        finding.severity === "warning"
-                            ? "warn"
-                            : finding.severity,
-                    code: `assert.${finding.rule}`,
-                    message: finding.message,
-                    file: finding.file ?? undefined
-                });
-            }
+        for (
+            let i = 0, len = assertionResult.findings.length;
+            i < len;
+            i++
+        ) {
+            const finding = assertionResult.findings[i];
+            issues.push({
+                severity:
+                    finding.severity === "warning"
+                        ? "warn"
+                        : finding.severity,
+                code: `assert.${finding.rule}`,
+                message: finding.message,
+                file: finding.file ?? undefined
+            });
         }
     }
 
@@ -322,6 +315,35 @@ function run() {
     if (errorCount > 0 || (options["fail-on-warn"] && warnCount > 0)) {
         process.exit(1);
     }
+}
+
+function executeAssertions() {
+    if (!options.assertions || options["no-assertions"]) {
+        return null;
+    }
+
+    const repository = Repository.fromFolder(root_dir, {
+        schemaMaterialRoots: schema_material_roots
+    });
+    if (options.profile !== "registry.profile.yaml") {
+        repository.loadProfile(options.profile);
+    }
+    const profile = repository.getProfile();
+    if (profile === null || profile === undefined) {
+        return null;
+    }
+
+    const packs = assertionPacksFromProfile(profile.data);
+    if (packs.length === 0) {
+        return null;
+    }
+
+    console.error("Running repository assertions...");
+    return runAssertionsIsolated(root_dir, {
+        packs,
+        promoteAdvisory: options.advisory,
+        mode: options.production ? "production" : options.mode
+    });
 }
 
 function printHumanReadable(stats, issues) {
