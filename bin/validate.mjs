@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { resolve } from "node:path";
+
+import { DataTable } from "../lib/record-schema/DataTable.mjs";
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
 import { deduplicateIssues } from "../lib/record-schema/util/issues.mjs";
@@ -235,6 +237,9 @@ function run() {
         // Count documents
         const docs = repo.findDocumentsInRecord(record);
         stats.documents += docs.length;
+        for (const document of docs) {
+            if (document.isMarkdown()) DataTable.validateMarkdown(document);
+        }
     }
 
     // 5. Assertion-pack authoring schema. The engine's runtime validation

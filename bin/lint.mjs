@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { resolve } from "node:path";
+
+import { DataTable } from "../lib/record-schema/DataTable.mjs";
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
 import { deduplicateIssues } from "../lib/record-schema/util/issues.mjs";
@@ -98,6 +100,8 @@ function run() {
             if (!doc.isMarkdown()) {
                 continue;
             }
+
+            DataTable.validateMarkdown(doc);
 
             const fileInfo = doc.getFileInfo();
 

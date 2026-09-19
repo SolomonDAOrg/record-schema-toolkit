@@ -1,21 +1,23 @@
 #!/usr/bin/env node
 
-import { resolve, join } from "node:path";
+import { resolvePageConfiguration } from "../lib/ast/adapters/RenderPackAdapter.mjs";
+import { resolve, join, relative } from "node:path";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 
 import { CLI } from "../lib/cli/cli.mjs";
 import { Repository } from "../lib/record-schema/Repository.mjs";
 import { RenderPack } from "../lib/record-schema/RenderPack.mjs";
 import { Registry } from "../lib/record-schema/Registry.mjs";
+import { deepSnakeToCamel } from "../lib/util/objects.mjs";
 
 import {
     createArticlePageBreakRule,
     createDocumentPipeline,
     createLegalKeepTogetherRule
 } from "../lib/ast/pipelines/DocumentPipeline.mjs";
+import { createTextVariableRule } from "../lib/ast/formatting/text-variables.mjs";
+import { createHeadingPageBreakRule } from "../lib/ast/formatting/heading-page-breaks.mjs";
 import { createTwoPassPdfRenderer } from "../lib/ast/renderers/TwoPassPdfRenderer.mjs";
-import { parseMarkdownDoc } from "../lib/index.mjs";
-import { convertMarkdownToDocument } from "../lib/ast/converters/MarkdownToAstConverter.mjs";
 
 import { FilingPacketGenerator } from "../lib/record-schema/generators/FilingPacketGenerator.mjs";
 import { IndManager } from "../lib/record-schema/IndManager.mjs";
@@ -84,6 +86,8 @@ const schema = {
         }
     },
     values: {
+        instance: {description: "Named instance declared in series META", default: null, type: "string"},
+        stage: {description: "Named instance stage: draft or for_execution", default: null, type: "string"},
         root: {
             aliases: ["r"],
             description: "Repository root or record directory",
@@ -272,7 +276,7 @@ function run() {
                     `[VERBOSE] render pack (discovery-hydrated): has policy=${!!repo.getRenderPolicy()} has packet_config=${!!repo.getPacketConfig()}`
                 );
             }
-            console.log(`Render pack (discovery)`);
+            console.log(`Render pack (discovery): ${repo.getLoadedRenderPacks().map((pack) => pack.getId()).filter(Boolean).join(", ") || "merged policy"}`);
         } else {
             // Priority 2: Profile pack paths (resolved relative to repo root)
             /** @type {string[]} */
@@ -506,6 +510,11 @@ function run() {
     // 4. Render Loop
     for (let i = 0; i < records.length; i++) {
         const record = records[i];
+        if (record.metafile?.data.template) {
+            if (!options.packet) throw new Error("Bound templates require --packet.");
+            const overrides = ["update-meta", "render-pack", "packet-name", "output", "author", "signing-page", "signing-parties", "signing-witness-clause", "exclude-ind", "generate-ind", "ind-in-footer", "ind-in-header", "disable-page-break-rules", "disable-soft-wrap", "no-watermark", "watermark", "watermark-text", "cover-title", "cover-entity", "cover-subtitle", "cover-effective-date", "cover-version", "cover-document-id", "cover-confidentiality", "cover-kind"];
+            for (const key of overrides) if (options[key]) throw new Error("Bound templates take this setting from config: " + key);
+        }
 
         // ---------------------------------------------------------
         // A. Filing Packet Generation
@@ -608,6 +617,8 @@ function run() {
             })();
 
             const result = packetGenerator.generate(record, {
+                instance: options.instance,
+                stage: options.stage,
                 exclude_ind: options["exclude-ind"],
                 ind_in_footer: options["ind-in-footer"],
                 ind_in_header: options["ind-in-header"],
@@ -636,11 +647,12 @@ function run() {
                 },
                 disable_page_break_rules:
                     options["disable-page-break-rules"] === true,
-                disable_soft_wrap: options["disable-soft_wrap"] === true
+                disable_soft_wrap: options["disable-soft-wrap"] === true
             });
 
             if (result.success) {
                 console.log(`  Success: ${result.rel_path}`);
+                console.log(`  SHA-256: ${result.hash}`);
                 if (options["update-meta"] && record.metafile) {
                     record.metafile.updatePacketInfo(
                         result.rel_path,
@@ -657,6 +669,7 @@ function run() {
                 }
             } else {
                 console.error(`  Failed: ${result.error}`, result);
+                process.exitCode = 1;
             }
             continue; // Skip individual docs if only generating packet (optional behavior)
         }
@@ -676,10 +689,12 @@ function run() {
         const docs = repo.findDocumentsInRecord(record, (doc) => {
             if (doc_typeFilter && doc_typeFilter.length > 0) {
                 const fileInfo = doc.getFileInfo();
-                if (
-                    !fileInfo.doc_type ||
-                    !doc_typeFilter.includes(fileInfo.doc_type)
-                ) {
+                const type =
+                    record.metafile?.resolveRenderMetadata({
+                        path: relative(record.abs_path, doc.source_path),
+                        doc_type: fileInfo.doc_type
+                    }).doc_type || fileInfo.doc_type;
+                if (!type || !doc_typeFilter.includes(type)) {
                     return false;
                 }
             }
@@ -691,15 +706,22 @@ function run() {
 
             const fileInfo = doc.getFileInfo();
             const rel_path = repo.getRelativePath(doc.source_path);
+            const document_path = relative(
+                record.abs_path,
+                doc.source_path
+            ).replace(/\\/g, "/");
+            const render_metadata = record.metafile?.resolveRenderMetadata({
+                path: document_path,
+                doc_type: fileInfo.doc_type,
+                record_id: record.record_id
+            });
 
             // --- 1. Generate IND (Parity Feature) ---
             if (options["generate-ind"]) {
                 const ind = indManager.generateInd(
-                    record.record_id,
-                    fileInfo.doc_type,
-                    // Version handling would ideally come from doc metadata or repo state
-                    // For now, defaulting to null/current as per old script behavior
-                    null
+                    render_metadata?.record_id || record.record_id,
+                    render_metadata?.doc_type || fileInfo.doc_type,
+                    render_metadata?.version || null
                 );
 
                 const changed = indManager.applyIndToPath(doc.source_path, ind);
@@ -713,8 +735,9 @@ function run() {
             // --- 2. Configure Renderer ---
             const config = renderPack.resolveForFile({
                 rel_path: rel_path,
-                doc_type: fileInfo.doc_type,
-                ext: fileInfo.ext
+                doc_type: render_metadata?.doc_type || fileInfo.doc_type,
+                ext: fileInfo.ext,
+                render_profile_id: render_metadata?.render_profile_id
             });
 
             if (verbose) {
@@ -736,17 +759,62 @@ function run() {
                 );
             }
 
+            const renderSource = doc.toRenderSource(
+                renderPack,
+                render_metadata ?? {
+                    path: document_path,
+                    doc_type: fileInfo.doc_type
+                },
+                record.rel_path,
+                { disable_soft_wrap: options["disable-soft-wrap"] === true }
+            );
+
             // Extract Metadata
             const metadata = doc.getMetadata() ? doc.getMetadata().data : {};
 
             const pipeline = createDocumentPipeline().addFormattingRules([
                 createLegalKeepTogetherRule(),
-                createArticlePageBreakRule()
+                ...(options["disable-page-break-rules"]
+                    ? []
+                    : [createArticlePageBreakRule()])
             ]);
+            const rendererConfig =
+                /** @type {import("../lib/ast/types/core.mjs").ResolvedRenderConfig} */ (
+                    deepSnakeToCamel(config ?? {})
+                );
+            if (!options["disable-page-break-rules"] && rendererConfig.headingPageBreaks) {
+                pipeline.addFormattingRule(createHeadingPageBreakRule(rendererConfig.headingPageBreaks));
+            }
+            const renderVariables = {
+                recordId: render_metadata?.record_id || record.record_id,
+                recordVersion: record.metafile?.data.document?.version ?? record.metafile?.data.version ?? "",
+                documentId: render_metadata?.document_id || fileInfo.base_name,
+                documentVersion: render_metadata?.version ?? "",
+                documentTitle: renderSource.name
+            };
+            if (rendererConfig.textVariables) {
+                pipeline.addFormattingRule(createTextVariableRule(rendererConfig.textVariables, renderVariables));
+            }
             const renderer = createTwoPassPdfRenderer({
-                pageConfig: config?.margins ? { margins: config.margins } : {},
-                baseFontSize: config?.base_font_size || 10,
-                horizontalRule: { behavior: "rule" },
+                pageConfig: resolvePageConfiguration(rendererConfig),
+                fonts: rendererConfig.fonts,
+                embeddedFonts: rendererConfig.embeddedFonts,
+                fontRoleDefaults: rendererConfig.fontRoleDefaults,
+                baseFontSize: rendererConfig.baseFontSize ?? 10,
+                lineHeight: rendererConfig.lineSpacing,
+                headingScales: rendererConfig.headingScales,
+                headingStyles: rendererConfig.headingStyles,
+                spacingPolicy: rendererConfig.spacingPolicy,
+                table: rendererConfig.table ?? rendererConfig.tableStyle,
+                directiveStyles: rendererConfig.directiveStyles,
+                markdownEnvelopeStyle: rendererConfig.markdownEnvelopeStyle,
+                pageTracking: rendererConfig.pageTracking,
+                pageComposition: rendererConfig.pageComposition,
+                pageNumbering: rendererConfig.pageNumbering,
+                defaultHeaders: rendererConfig.defaultHeaders,
+                defaultFooters: rendererConfig.defaultFooters,
+                variables: renderVariables,
+                horizontalRule: rendererConfig.horizontalRule,
                 verbose: verbose,
                 metadata: {
                     title: `${record.record_id} — ${
@@ -766,7 +834,7 @@ function run() {
             // --- 3. Inject PDF Metadata (Parity Feature) ---
             const renderMetadata = {
                 ...metadata,
-                Title: metadata.Title || fileInfo.base_name,
+                Title: renderSource.name,
                 Author: options.author || metadata.Author,
                 Subject: `${record.record_id} ${fileInfo.doc_type}`,
                 Producer: "Solomon DAO - Record Render"
@@ -774,19 +842,10 @@ function run() {
 
             console.log(`Rendering: ${rel_path}`);
 
-            const ast = convertMarkdownToDocument(
-                parseMarkdownDoc(
-                    doc.text,
-                    options["disable-soft-wrap"] === true
-                        ? undefined
-                        : { softWrap: true }
-                )
-            );
-
             const result = pipeline.processSingle({
                 id: fileInfo.record_id || "UNKNOWN",
                 name: renderMetadata.Title,
-                root: ast.root,
+                root: renderSource.root,
                 metadata: renderMetadata
             });
 
@@ -800,7 +859,10 @@ function run() {
 
                 writeFileSync(outPath, result.renderResult.output);
             } else {
-                console.error(`Failed to render ${rel_path}`);
+                console.error(
+                    `Failed to render ${rel_path}: ${result.errors.join("; ")}`
+                );
+                process.exitCode = 1;
             }
         }
     }

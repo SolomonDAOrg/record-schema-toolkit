@@ -14,6 +14,8 @@ const commands = new Map([
     ["lint", "lint.mjs"],
     ["materialize", "materialize.mjs"],
     ["render", "render.mjs"],
+    ["sign", "sign.mjs"],
+    ["verify-signatures", "verify-signatures.mjs"],
     ["report", "report.mjs"],
     ["validate", "validate.mjs"],
     ["verify-license", "verify-license.mjs"]
@@ -34,7 +36,11 @@ function printUsage() {
 }
 
 const commandName = process.argv[2];
-if (commandName === undefined || commandName === "--help" || commandName === "-h") {
+if (
+    commandName === undefined ||
+    commandName === "--help" ||
+    commandName === "-h"
+) {
     printUsage();
     process.exit(0);
 }

@@ -21,22 +21,24 @@
     "private": true,
     "type": "module",
     "bin": {
-        "record-schema-toolkit": "./bin/record-schema-toolkit.mjs",
+        "apply-language-rules": "./bin/apply-language-rules.mjs",
+        "assert": "./bin/assert.mjs",
         "chart": "./bin/chart.mjs",
+        "doctor": "./bin/doctor.mjs",
         "format": "./bin/format.mjs",
         "generate-index": "./bin/generate-index.mjs",
         "lint": "./bin/lint.mjs",
-        "render": "./bin/render.mjs",
-        "validate": "./bin/validate.mjs",
-        "apply-language-rules": "./bin/apply-language-rules.mjs",
-        "verify-license": "./bin/verify-license.mjs",
-        "assert": "./bin/assert.mjs",
         "materialize": "./bin/materialize.mjs",
+        "record-schema-toolkit": "./bin/record-schema-toolkit.mjs",
+        "render": "./bin/render.mjs",
         "report": "./bin/report.mjs",
-        "doctor": "./bin/doctor.mjs"
+        "validate": "./bin/validate.mjs",
+        "verify-license": "./bin/verify-license.mjs",
+        "sign": "./bin/sign.mjs",
+        "verify-signatures": "./bin/verify-signatures.mjs"
     },
     "scripts": {
-        "examples": "node examples/examples.mjs",
+        "examples": "node examples/main.mjs",
         "test": "node --test \"tests/**/*.test.mjs\"",
         "validate": "node ./bin/validate.mjs",
         "lint": "node ./bin/lint.mjs",
@@ -49,7 +51,9 @@
         "assert": "node ./bin/assert.mjs",
         "materialize": "node ./bin/materialize.mjs",
         "report": "node ./bin/report.mjs",
-        "doctor": "node ./bin/doctor.mjs"
+        "doctor": "node ./bin/doctor.mjs",
+        "sign": "node ./bin/sign.mjs",
+        "verify-signatures": "node ./bin/verify-signatures.mjs"
     },
     "engines": {
         "node": ">=18"
