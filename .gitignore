@@ -11,12 +11,12 @@ render
 schema
 templates
 
-!lib/formatting
-!lib/profiles
-!lib/registry
-!lib/schema
-!lib/templates
-!lib/render
+!lib/**/formatting
+!lib/**/profiles
+!lib/**/registry
+!lib/**/schema
+!lib/**/templates
+!lib/**/render
 
 output/
 
