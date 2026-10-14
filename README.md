@@ -247,12 +247,16 @@ node ./bin/generate-index.mjs --root . --record-filter DP-00001 --overwrite
 
 ### render
 
-Render record documents to PDF using RenderPacks. Supports single documents
-and filing packets.
+Render record documents to PDF or DOCX using RenderPacks. Supports single
+documents and filing packets. PDF is the default. See [DOCX output](docs/docx.md)
+for Word representation and format boundaries.
 
 ```bash
 # Render all documents in a record
 node ./bin/render.mjs --root ./DP-00001-my-record --render-pack my.renderpack.json
+
+# Render editable Word documents with the same source and render pack
+node ./bin/render.mjs --root ./DP-00001-my-record --format docx --render-pack my.renderpack.json
 
 # Generate a filing packet
 node ./bin/render.mjs --root . --packet --render-pack my.renderpack.json --record-filter DP-00001
@@ -284,7 +288,8 @@ node ./bin/render.mjs --root . --packet --signing-page --ind-in-footer --render-
 | Option | Default | Description |
 |---|---|---|
 | `--root` / `-r` | `.` | Repository root or record directory |
-| `--output` | `{record}/pdf` | Output directory |
+| `--format` | `pdf` | Output format: `pdf` or `docx` |
+| `--output` | `{record}/{format}` | Output directory |
 | `--render-pack` | `null` | Render pack JSON path |
 | `--packet-name` | `{RECORD_ID}_PKT-filing.pdf` | Override packet filename |
 | `--record-filter` | `null` | Filter by Record ID substring |

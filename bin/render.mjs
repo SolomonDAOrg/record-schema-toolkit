@@ -17,13 +17,13 @@ import {
 } from "../lib/ast/pipelines/DocumentPipeline.mjs";
 import { createTextVariableRule } from "../lib/ast/formatting/text-variables.mjs";
 import { createHeadingPageBreakRule } from "../lib/ast/formatting/heading-page-breaks.mjs";
-import { createTwoPassPdfRenderer } from "../lib/ast/renderers/TwoPassPdfRenderer.mjs";
+import { createDocumentRenderer } from "../lib/ast/renderers/document-renderer.mjs";
 
 import { FilingPacketGenerator } from "../lib/record-schema/generators/FilingPacketGenerator.mjs";
 import { IndManager } from "../lib/record-schema/IndManager.mjs";
 
 const SCRIPT_NAME = "render";
-const DESCRIPTION = "Render records to PDF using RenderPacks";
+const DESCRIPTION = "Render records to PDF or DOCX using RenderPacks";
 
 const schema = {
     flags: {
@@ -44,7 +44,7 @@ const schema = {
             default: false
         },
         "exclude-ind": {
-            description: "Exclude IND from PDF output",
+            description: "Exclude IND from document output",
             default: false
         },
         "generate-ind": {
@@ -57,11 +57,11 @@ const schema = {
             default: false
         },
         "ind-in-footer": {
-            description: "Show IND in PDF footer (ignored if --exclude-ind)",
+            description: "Show IND in document footer (ignored if --exclude-ind)",
             default: false
         },
         "ind-in-header": {
-            description: "Show IND in PDF header (ignored if --exclude-ind)",
+            description: "Show IND in document header (ignored if --exclude-ind)",
             default: false
         },
         "no-discovery": {
@@ -86,6 +86,7 @@ const schema = {
         }
     },
     values: {
+        format: { description: "Output format: pdf or docx", default: "pdf", type: "string" },
         instance: {description: "Named instance declared in series META", default: null, type: "string"},
         stage: {description: "Named instance stage: draft or for_execution", default: null, type: "string"},
         root: {
@@ -95,7 +96,7 @@ const schema = {
             type: "string"
         },
         output: {
-            description: "Output directory (default: {record}/pdf)",
+            description: "Output directory (default: {record}/{format})",
             default: null,
             type: "string"
         },
@@ -106,7 +107,7 @@ const schema = {
         },
         "packet-name": {
             description:
-                "Override packet filename (default: {RECORD_ID}_PKT-filing.pdf)",
+                "Override packet filename (extension must match DOCX mode)",
             default: null,
             type: "string"
         },
@@ -126,7 +127,7 @@ const schema = {
             type: "array"
         },
         author: {
-            description: "Author name for PDF metadata",
+            description: "Author name for document metadata",
             default: null,
             type: "string"
         },
@@ -198,6 +199,7 @@ const options = CLI.handleCLI({
 const inputDir = resolve(process.cwd(), options.root);
 
 function run() {
+    if (!["pdf", "docx"].includes(options.format)) throw new Error("Unsupported output format: " + options.format);
     // 1. Load Repository with discovery
     /** @type {Repository} */
     let repo;
@@ -617,6 +619,7 @@ function run() {
             })();
 
             const result = packetGenerator.generate(record, {
+                format: options.format,
                 instance: options.instance,
                 stage: options.stage,
                 exclude_ind: options["exclude-ind"],
@@ -650,6 +653,7 @@ function run() {
                 disable_soft_wrap: options["disable-soft-wrap"] === true
             });
 
+            for (const warning of result.warnings ?? []) console.warn("  [WARN] " + warning);
             if (result.success) {
                 console.log(`  Success: ${result.rel_path}`);
                 console.log(`  SHA-256: ${result.hash}`);
@@ -679,7 +683,7 @@ function run() {
         // ---------------------------------------------------------
         const outputDir = options.output
             ? join(options.output, record.dir_name)
-            : join(record.abs_path, "pdf");
+            : join(record.abs_path, options.format);
 
         mkdirSync(outputDir, { recursive: true });
 
@@ -795,7 +799,7 @@ function run() {
             if (rendererConfig.textVariables) {
                 pipeline.addFormattingRule(createTextVariableRule(rendererConfig.textVariables, renderVariables));
             }
-            const renderer = createTwoPassPdfRenderer({
+            const renderer = createDocumentRenderer(options.format, {
                 pageConfig: resolvePageConfiguration(rendererConfig),
                 fonts: rendererConfig.fonts,
                 embeddedFonts: rendererConfig.embeddedFonts,
@@ -849,8 +853,9 @@ function run() {
                 metadata: renderMetadata
             });
 
+            for (const warning of result.warnings ?? []) console.warn("  [WARN] " + warning);
             if (result.success && result.renderResult?.output) {
-                const outPath = join(outputDir, fileInfo.base_name + ".pdf");
+                const outPath = join(outputDir, fileInfo.base_name + "." + options.format);
 
                 if (!options.overwrite && existsSync(outPath)) {
                     console.log("  Skipping (exists)");
