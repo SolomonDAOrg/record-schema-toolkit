@@ -48,7 +48,9 @@ original binding and signing-slot checks still run.
 Text, headings, inline formatting, nested lists, tables, merged cells,
 hyperlinks, bookmarks, images, form controls and signature rows are native
 Word content. Table headers repeat across pages. The existing DataTable class
-continues to resolve and format external tabular sources. Content-sized columns
+continues to resolve and format external tabular sources. Text columns with
+`format: markdown` preserve inline styles, hyperlinks and line breaks; omitted
+format or `format: plain` keeps cell values literal. Content-sized columns
 use the same width allocation and font-size rules as PDF; Word receives a fixed
 table grid. All TOC entry levels are bold, with configured sizes and indentation.
 Signature panels retain borders and title bands, single blocks use open signature

@@ -1,11 +1,18 @@
+// @ts-nocheck
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DataTable } from "../../../lib/record-schema/DataTable.mjs";
-import { MarkdownToAstConverter, convertMarkdownToDocument } from "../../../lib/ast/converters/MarkdownToAstConverter.mjs";
-import { parseMarkdownDoc, reflowMarkdown } from "../../../lib/parsing/markdown.mjs";
+import {
+    MarkdownToAstConverter,
+    convertMarkdownToDocument
+} from "../../../lib/ast/converters/MarkdownToAstConverter.mjs";
+import {
+    parseMarkdownDoc,
+    reflowMarkdown
+} from "../../../lib/parsing/markdown.mjs";
 import { FormattingPack } from "../../../lib/record-schema/FormattingPack.mjs";
 import { Document } from "../../../lib/record-schema/Document.mjs";
 import { createDocumentPipeline } from "../../../lib/ast/pipelines/DocumentPipeline.mjs";
@@ -19,51 +26,143 @@ import { extractText } from "../../../lib/pdf/extract-text.mjs";
 function convertDataTable(t, relativePath, definitionSource, readSource) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "data-table-"));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const sourceDocument = readSource ? Document.fromText("", path.join(directory, "document.md")) : undefined;
-    if (readSource) fs.writeFileSync(path.join(directory, relativePath), readSource(relativePath));
-    return new MarkdownToAstConverter({sourceDocument})._convertDataTable({
-        type: "directive", content: definitionSource, attrs: {name: "data-table", title: relativePath}, children: []
+    const sourceDocument = readSource
+        ? Document.fromText("", path.join(directory, "document.md"))
+        : undefined;
+    if (readSource)
+        fs.writeFileSync(
+            path.join(directory, relativePath),
+            readSource(relativePath)
+        );
+    return new MarkdownToAstConverter({ sourceDocument })._convertDataTable({
+        type: "directive",
+        content: definitionSource,
+        attrs: { name: "data-table", title: relativePath },
+        children: []
     });
 }
 
-const definition = "columns:\n  - { header: Date, type: date, format: DD MMM YYYY, align: center, width: max-content }\n  - { header: Description, type: text, align: left, width: auto }\n  - { header: Amount, type: decimal, decimal_places: 2, rounding: half-up, grouping: true, align: right, width: max-content }\nstriped_rows: true\n";
-const markdown = "# Income\n\n:::data-table income.tsv\n" + definition + ":::\n\nFollowing text.\n";
+const definition =
+    "columns:\n  - { header: Date, type: date, format: DD MMM YYYY, align: center, width: max-content }\n  - { header: Description, type: text, align: left, width: auto }\n  - { header: Amount, type: decimal, decimal_places: 2, rounding: half-up, grouping: true, align: right, width: max-content }\nstriped_rows: true\n";
+const markdown =
+    "# Income\n\n:::data-table income.tsv\n" +
+    definition +
+    ":::\n\nFollowing text.\n";
 
 /** @type {DataTableDecimalColumn} */
-const amount = { header: "Amount", type: "decimal", decimal_places: 2, rounding: "half-up", grouping: true, align: "right", width: "auto" };
+const amount = {
+    header: "Amount",
+    type: "decimal",
+    decimal_places: 2,
+    rounding: "half-up",
+    grouping: true,
+    align: "right",
+    width: "auto"
+};
 
 test("amounts use exact decimal rounding and dates reject impossible calendar values", () => {
-    assert.equal(DataTable.formatValue("9007199254740993.005", amount), "9,007,199,254,740,993.01");
+    assert.equal(
+        DataTable.formatValue("9007199254740993.005", amount),
+        "9,007,199,254,740,993.01"
+    );
     assert.equal(DataTable.formatValue("-1.005", amount), "-1.01");
     assert.equal(DataTable.formatValue("-0.001", amount), "0.00");
     assert.equal(DataTable.formatValue("12", amount), "12.00");
     assert.equal(DataTable.formatValue("", { ...amount, nullable: true }), "");
-    for (const value of ["", "1e3", "USD 10", "1,000", "NaN"]) assert.throws(() => DataTable.formatValue(value, amount));
-    assert.throws(() => DataTable.formatValue("1.005", { ...amount, rounding: "reject" }), /precision/);
+    for (const value of ["", "1e3", "USD 10", "1,000", "NaN"])
+        assert.throws(() => DataTable.formatValue(value, amount));
+    assert.throws(
+        () => DataTable.formatValue("1.005", { ...amount, rounding: "reject" }),
+        /precision/
+    );
     const date = DataTable.parseDefinition(definition).columns[0];
     assert.equal(DataTable.formatValue("2024-02-29", date), "29 Feb 2024");
     assert.equal(DataTable.formatValue("0001-01-01", date), "01 Jan 0001");
     assert.equal(DataTable.formatValue("0099-12-31", date), "31 Dec 0099");
     assert.equal(DataTable.formatValue("2000-02-29", date), "29 Feb 2000");
     assert.equal(DataTable.formatValue("9999-12-31", date), "31 Dec 9999");
-    for (const value of ["2025-02-29", "1900-02-29", "2026-04-31", "0000-01-01", "2026-00-01", "2026-13-01", "2026-01-00", "2026-01-32", "08/09/2026"]) assert.throws(() => DataTable.formatValue(value, date));
+    for (const value of [
+        "2025-02-29",
+        "1900-02-29",
+        "2026-04-31",
+        "0000-01-01",
+        "2026-00-01",
+        "2026-13-01",
+        "2026-01-00",
+        "2026-01-32",
+        "08/09/2026"
+    ])
+        assert.throws(() => DataTable.formatValue(value, date));
 });
 
 test("referenced table headings, columns, records and literal contents remain explicit", (t) => {
-    const table = convertDataTable(t, "income.tsv", definition, () => "Date\tDescription\tAmount\n2026-09-08\t[Literal] **text**\t10.005\n");
+    const table = convertDataTable(
+        t,
+        "income.tsv",
+        definition,
+        () =>
+            "Date\tDescription\tAmount\n2026-09-08\t[Literal] **text**\t10.005\n"
+    );
     assert.equal(table.headerRow, true);
     assert.equal(table.stripedRows, true);
     assert.equal(table.getCell(1, 0).getTextContent(), "08 Sep 2026");
     assert.equal(table.getCell(1, 1).getTextContent(), "[Literal] **text**");
     assert.equal(table.getCell(1, 2).getTextContent(), "10.01");
     assert.equal(table.getCell(1, 2).align, "right");
-    assert.equal(convertDataTable(t, "income.csv", definition, () => "Date,Description,Amount\n").rowCount(), 1);
-    assert.throws(() => convertDataTable(t, "income.csv", definition, () => "Description,Date,Amount\n"), /headings/);
-    assert.throws(() => convertDataTable(t, "income.csv", definition, () => "Date,Description,Amount\n2026-09-08,short\n"), /field count/);
-    assert.throws(() => convertDataTable(t, "income.csv", definition, () => "Date,Description,Amount\n2026-09-08,fee,wrong\n"), /record 2, Amount/);
-    assert.throws(() => convertDataTable(t, "income.csv", definition, undefined), /source document/);
-    assert.throws(() => DataTable.parseDefinition(definition + "guess_types: true\n"), /requires columns/);
-    assert.throws(() => DataTable.parseDefinition(definition.replace("rounding: half-up", "rounding: implicit")), /rounding/);
+    assert.equal(
+        convertDataTable(
+            t,
+            "income.csv",
+            definition,
+            () => "Date,Description,Amount\n"
+        ).rowCount(),
+        1
+    );
+    assert.throws(
+        () =>
+            convertDataTable(
+                t,
+                "income.csv",
+                definition,
+                () => "Description,Date,Amount\n"
+            ),
+        /headings/
+    );
+    assert.throws(
+        () =>
+            convertDataTable(
+                t,
+                "income.csv",
+                definition,
+                () => "Date,Description,Amount\n2026-09-08,short\n"
+            ),
+        /field count/
+    );
+    assert.throws(
+        () =>
+            convertDataTable(
+                t,
+                "income.csv",
+                definition,
+                () => "Date,Description,Amount\n2026-09-08,fee,wrong\n"
+            ),
+        /record 2, Amount/
+    );
+    assert.throws(
+        () => convertDataTable(t, "income.csv", definition, undefined),
+        /source document/
+    );
+    assert.throws(
+        () => DataTable.parseDefinition(definition + "guess_types: true\n"),
+        /requires columns/
+    );
+    assert.throws(
+        () =>
+            DataTable.parseDefinition(
+                definition.replace("rounding: half-up", "rounding: implicit")
+            ),
+        /rounding/
+    );
 });
 
 test("document validation and reflow retain the bound data-table reference", (t) => {
@@ -71,71 +170,160 @@ test("document validation and reflow retain the bound data-table reference", (t)
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const sourcePath = path.join(directory, "CON-00002_DOC-income.md");
     fs.writeFileSync(sourcePath, markdown);
-    fs.writeFileSync(path.join(directory, "income.tsv"), "Date\tDescription\tAmount\n2026-09-08\tService fee\t1000\n");
+    fs.writeFileSync(
+        path.join(directory, "income.tsv"),
+        "Date\tDescription\tAmount\n2026-09-08\tService fee\t1000\n"
+    );
     const sourceDocument = Document.load(sourcePath);
-    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), { sourceDocument });
+    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), {
+        sourceDocument
+    });
     assert.equal(ast.root.children[1].type, "table");
-    assert.doesNotThrow(() => DataTable.validateMarkdown(Document.load(sourcePath)));
+    assert.doesNotThrow(() =>
+        DataTable.validateMarkdown(Document.load(sourcePath))
+    );
     const reflowed = reflowMarkdown(markdown, 72).text;
     assert.match(reflowed, /rounding: half-up/);
-    assert.doesNotThrow(() => DataTable.validateMarkdown(sourceDocument.withText(reflowed)));
-    assert.throws(() => sourceDocument.loadResource("../outside.csv"), /leaves/);
-    assert.throws(() => sourceDocument.loadResource("https://example.com/income.csv"), /Invalid/);
+    assert.doesNotThrow(() =>
+        DataTable.validateMarkdown(sourceDocument.withText(reflowed))
+    );
+    assert.throws(
+        () => sourceDocument.loadResource("../outside.csv"),
+        /leaves/
+    );
+    assert.throws(
+        () => sourceDocument.loadResource("https://example.com/income.csv"),
+        /Invalid/
+    );
     fs.symlinkSync(path.join(directory, ".."), path.join(directory, "escape"));
     assert.throws(() => sourceDocument.loadResource("escape/outside.csv"));
-    fs.writeFileSync(path.join(directory, "income.tsv"), "Date\tDescription\tAmount\n2026-02-30\tFee\t10\n");
-    assert.throws(() => DataTable.validateMarkdown(Document.load(sourcePath)), /income.tsv: record 2, Date/);
+    fs.writeFileSync(
+        path.join(directory, "income.tsv"),
+        "Date\tDescription\tAmount\n2026-02-30\tFee\t10\n"
+    );
+    assert.throws(
+        () => DataTable.validateMarkdown(Document.load(sourcePath)),
+        /income.tsv: record 2, Date/
+    );
     fs.unlinkSync(path.join(directory, "income.tsv"));
-    assert.throws(() => DataTable.validateMarkdown(Document.load(sourcePath)), /ENOENT/);
+    assert.throws(
+        () => DataTable.validateMarkdown(Document.load(sourcePath)),
+        /ENOENT/
+    );
 });
 
 test("referenced tables repeat headers and alternate data-row fills across pages", (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "data-table-pages-"));
+    const directory = fs.mkdtempSync(
+        path.join(os.tmpdir(), "data-table-pages-")
+    );
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const records = "Date\tDescription\tAmount\n" + Array.from({ length: 90 }, (_, index) => "2026-09-08\tEntry " + index + "\t1000.005\n").join("");
+    const records =
+        "Date\tDescription\tAmount\n" +
+        Array.from(
+            { length: 90 },
+            (_, index) => "2026-09-08\tEntry " + index + "\t1000.005\n"
+        ).join("");
     fs.writeFileSync(path.join(directory, "income.tsv"), records);
-    const sourceDocument = Document.fromText(markdown, path.join(directory, "document.md"));
-    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), { sourceDocument });
-    const renderer = createTwoPassPdfRenderer({ pageConfig: { size: "a4" }, table: { zebra: { enabled: true, oddBackground: "#FFFFFF", evenBackground: "#F1F5F7" } } });
+    const sourceDocument = Document.fromText(
+        markdown,
+        path.join(directory, "document.md")
+    );
+    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), {
+        sourceDocument
+    });
+    const renderer = createTwoPassPdfRenderer({
+        pageConfig: { size: "a4" },
+        table: {
+            zebra: {
+                enabled: true,
+                oddBackground: "#FFFFFF",
+                evenBackground: "#F1F5F7"
+            }
+        }
+    });
     /** @type {PdfPage[]} */
     let renderedPages = [];
     const build = renderer.buildPdf.bind(renderer);
-    renderer.buildPdf = state => { renderedPages = state.pages; return build(state); };
-    const result = createDocumentPipeline().setRenderer(renderer).processSingle({ id: "CON-00002", name: "Income", root: ast.root });
+    renderer.buildPdf = (state) => {
+        renderedPages = state.pages;
+        return build(state);
+    };
+    const result = createDocumentPipeline()
+        .setRenderer(renderer)
+        .processSingle({ id: "CON-00002", name: "Income", root: ast.root });
     assert.equal(result.success, true, result.errors.join("; "));
     const pages = extractText(result.renderResult.output).pages;
     assert.ok(pages.length > 1);
     for (let index = 0; index < pages.length; index++) {
         assert.match(pages[index], /Date/);
         assert.match(pages[index], /Amount/);
-        assert.match(renderedPages[index].contentBuilder.build(), /0\.9451 0\.9608 0\.9686 rg/);
+        assert.match(
+            renderedPages[index].contentBuilder.build(),
+            /0\.9451 0\.9608 0\.9686 rg/
+        );
     }
     assert.equal((pages.join(" ").match(/1,000.01/g) ?? []).length, 90);
     assert.match(pages.at(-1), /Following/);
 });
 
 test("dialect lint leaves declared data-table syntax alone and checks surrounding prose", () => {
-    const policy = { defaults: { dialect_pack: "british" }, dialect_packs: { british: { pairs: [{ preferred: "centre", forbid: ["center"] }] } } };
-    const lint = text => FormattingPack.lintDocument(policy, Document.fromText(text, "CON-00002_DOC-income.md"), "CON-00002_DOC-income.md", { doc_type: "DOC", ext: "md", is_root_file: false });
-    assert.equal(lint(markdown).filter(issue => issue.code === "format.dialect.spelling").length, 0);
-    assert.equal(lint(markdown + "\nThe center of the page.\n").filter(issue => issue.code === "format.dialect.spelling").length, 1);
+    const policy = {
+        defaults: { dialect_pack: "british" },
+        dialect_packs: {
+            british: { pairs: [{ preferred: "centre", forbid: ["center"] }] }
+        }
+    };
+    const lint = (text) =>
+        FormattingPack.lintDocument(
+            policy,
+            Document.fromText(text, "CON-00002_DOC-income.md"),
+            "CON-00002_DOC-income.md",
+            { doc_type: "DOC", ext: "md", is_root_file: false }
+        );
+    assert.equal(
+        lint(markdown).filter(
+            (issue) => issue.code === "format.dialect.spelling"
+        ).length,
+        0
+    );
+    assert.equal(
+        lint(markdown + "\nThe center of the page.\n").filter(
+            (issue) => issue.code === "format.dialect.spelling"
+        ).length,
+        1
+    );
 });
 
 test("native PDF places decimal values against a common right edge and centers dates", (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "data-table-pages-"));
+    const directory = fs.mkdtempSync(
+        path.join(os.tmpdir(), "data-table-pages-")
+    );
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const records = "Date\tDescription\tAmount\n2026-09-08\tFirst\t10\n2026-09-09\tSecond\t10000\n";
+    const records =
+        "Date\tDescription\tAmount\n2026-09-08\tFirst\t10\n2026-09-09\tSecond\t10000\n";
     fs.writeFileSync(path.join(directory, "income.tsv"), records);
-    const sourceDocument = Document.fromText(markdown, path.join(directory, "document.md"));
-    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), { sourceDocument });
+    const sourceDocument = Document.fromText(
+        markdown,
+        path.join(directory, "document.md")
+    );
+    const ast = convertMarkdownToDocument(parseMarkdownDoc(markdown), {
+        sourceDocument
+    });
     const renderer = createTwoPassPdfRenderer({ pageConfig: { size: "a4" } });
     let stream = "";
     const build = renderer.buildPdf.bind(renderer);
-    renderer.buildPdf = state => { stream = state.pages[0].contentBuilder.build(); return build(state); };
-    const result = createDocumentPipeline().setRenderer(renderer).processSingle({ id: "CON-00002", name: "Income", root: ast.root });
+    renderer.buildPdf = (state) => {
+        stream = state.pages[0].contentBuilder.build();
+        return build(state);
+    };
+    const result = createDocumentPipeline()
+        .setRenderer(renderer)
+        .processSingle({ id: "CON-00002", name: "Income", root: ast.root });
     assert.equal(result.success, true, result.errors.join("; "));
-    const x = value => {
-        const match = Array.from(stream.matchAll(/1 0 0 1 ([\d.]+) ([\d.]+) Tm\n\(([^\n]*)\) Tj/g)).find(item => item[3] === value);
+    const x = (value) => {
+        const match = Array.from(
+            stream.matchAll(/1 0 0 1 ([\d.]+) ([\d.]+) Tm\n\(([^\n]*)\) Tj/g)
+        ).find((item) => item[3] === value);
         assert.ok(match, value);
         return Number(match[1]);
     };
@@ -143,13 +331,192 @@ test("native PDF places decimal values against a common right edge and centers d
     assert.ok(x("Date") > x("08 Sep 2026"));
 });
 
-
 test("referenced CSV and TSV columns accept padded intrinsic widths", (t) => {
-    const padded = definition.replaceAll("width: max-content", "width: max-content-padded");
-    for (const [name, separator] of [["income.csv", ","], ["income.tsv", "\t"]]) {
-        const table = convertDataTable(t, name, padded, () => ["Date", "Description", "Amount"].join(separator) + "\n" + ["2026-09-08", "Entry", "1000"].join(separator) + "\n");
+    const padded = definition.replaceAll(
+        "width: max-content",
+        "width: max-content-padded"
+    );
+    for (const [name, separator] of [
+        ["income.csv", ","],
+        ["income.tsv", "\t"]
+    ]) {
+        const table = convertDataTable(
+            t,
+            name,
+            padded,
+            () =>
+                ["Date", "Description", "Amount"].join(separator) +
+                "\n" +
+                ["2026-09-08", "Entry", "1000"].join(separator) +
+                "\n"
+        );
         assert.equal(table.columns[0].widthType, "max-content-padded");
         assert.equal(table.columns[2].widthType, "max-content-padded");
         assert.equal(table.getCell(1, 2).getTextContent(), "1,000.00");
     }
+});
+
+test("text columns opt into inline Markdown without changing literal columns or headers", (t) => {
+    const columns =
+        'columns:\n  - { header: "**Literal**", type: text, align: left, width: auto }\n  - { header: Detail, type: text, format: markdown, align: left, width: auto }\n';
+    const content =
+        "**Label:** [signature](https://solscan.io/tx/signature)\nsecond line";
+    for (const [name, separator] of [
+        ["details.csv", ","],
+        ["details.tsv", "\t"]
+    ]) {
+        const source =
+            ["**Literal**", "Detail"].join(separator) +
+            "\n" +
+            ['"**Literal** [value]"', '"' + content + '"'].join(separator) +
+            "\n";
+        const table = convertDataTable(t, name, columns, () => source);
+        assert.equal(table.getCell(0, 0).getTextContent(), "**Literal**");
+        assert.equal(
+            table.getCell(1, 0).getTextContent(),
+            "**Literal** [value]"
+        );
+        assert.equal(table.getCell(1, 1).children[0].type, "inline-format");
+        assert.equal(table.getCell(1, 1).children[0].formatType, "bold");
+        assert.equal(
+            table.getCell(1, 1).children.find((node) => node.type === "link")
+                .href,
+            "https://solscan.io/tx/signature"
+        );
+        assert.equal(
+            table.getCell(1, 1).children.filter((node) => node.type === "break")
+                .length,
+            1
+        );
+    }
+    assert.doesNotThrow(() =>
+        DataTable.parseDefinition(
+            columns.replace("format: markdown", "format: plain")
+        )
+    );
+    for (const format of ["html", "true", "1"])
+        assert.throws(
+            () =>
+                DataTable.parseDefinition(
+                    columns.replace("format: markdown", "format: " + format)
+                ),
+            /plain or markdown/
+        );
+    assert.throws(
+        () =>
+            DataTable.parseDefinition(
+                columns.replace(
+                    "type: text, format: markdown",
+                    "type: date, format: markdown"
+                )
+            ),
+        /date format/
+    );
+    assert.throws(
+        () =>
+            DataTable.parseDefinition(
+                columns.replace(
+                    "type: text, format: markdown",
+                    "type: decimal, decimal_places: 2, rounding: half-up, format: markdown"
+                )
+            ),
+        /Undeclared/
+    );
+    assert.throws(
+        () =>
+            convertDataTable(
+                t,
+                "image.tsv",
+                columns,
+                () => "**Literal**\tDetail\nvalue\t**![image](image.png)**\n"
+            ),
+        /images are not supported/
+    );
+});
+
+test("rich table cells retain bold fonts, wrapped link rectangles and whole rows across pages", (t) => {
+    const signature =
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".repeat(2);
+    const url = "https://solscan.io/tx/" + signature;
+    const columns =
+        "columns:\n  - { header: Payment, type: text, align: left, width: auto }\n  - { header: Particulars, type: text, format: markdown, align: right, width: auto }\n";
+    const detail =
+        "**Signature:** [" +
+        signature +
+        "](" +
+        url +
+        ")\n**Source token account:** value\nlast line";
+    const source =
+        "Payment\tParticulars\n" +
+        Array.from(
+            { length: 12 },
+            (_, index) => "Payment " + index + '\t"' + detail + '"\n'
+        ).join("");
+    const table = convertDataTable(t, "payments.tsv", columns, () => source);
+    const renderer = createTwoPassPdfRenderer({
+        pageConfig: { size: "a4" },
+        fonts: { regular: "Helvetica", bold: "Helvetica-Bold" },
+        table: {
+            fontSize: 10,
+            autoShrink: false,
+            lineHeight: 1.2,
+            cellPadding: 4,
+            borderWidth: 0.5
+        }
+    });
+    const state = renderer.initializeState();
+    renderer.newPage(state, "body");
+    state.contentWidth = 260;
+    const draws = [];
+    const draw = renderer.renderInlineToken.bind(renderer);
+    renderer.renderInlineToken = (state, text, x, y, size, font, run) => {
+        draws.push({
+            page: state.pages.length - 1,
+            text,
+            x,
+            y,
+            font,
+            href: run.linkHref
+        });
+        draw(state, text, x, y, size, font, run);
+    };
+    renderer.renderTable(table, state, "body", null);
+    assert.ok(state.pages.length > 1);
+    for (let index = 0; index < state.pages.length; index++) {
+        const pageDraws = draws.filter((value) => value.page === index);
+        const labels = pageDraws.filter((value) => value.text === "Signature:");
+        assert.ok(labels.length);
+        assert.ok(labels.every((value) => value.font === "Helvetica-Bold"));
+        assert.equal(
+            pageDraws.filter((value) => value.text === "last line").length,
+            labels.length
+        );
+        assert.match(
+            state.pages[index].contentBuilder.build(),
+            /\(Particulars\) Tj/
+        );
+        const links = state.pages[index].linkAnnotations;
+        const signatureDraws = pageDraws.filter((value) => value.href === url);
+        assert.equal(links.length, signatureDraws.length);
+        assert.ok(links.length > labels.length, "A long signature must wrap");
+        assert.equal(
+            signatureDraws.map((value) => value.text).join(""),
+            signature.repeat(labels.length)
+        );
+        for (const link of links) {
+            assert.equal(link.type, "external");
+            assert.equal(link.url, url);
+            assert.ok(link.x >= state.margins.left + 130);
+            assert.ok(
+                Math.abs(
+                    link.x + link.width - (state.margins.left + 260 - 4.25)
+                ) < 0.001
+            );
+            assert.ok(link.y >= state.margins.bottom && link.height > 0);
+        }
+    }
+    assert.equal(
+        draws.filter((value) => value.text === "Signature:").length,
+        12
+    );
 });

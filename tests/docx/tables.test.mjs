@@ -105,3 +105,54 @@ test("wide DOCX tables apply the PDF font-size limits instead of squeezing full-
     assert.match(xml, /<w:sz w:val="12"\/>/);
     assert.equal(Math.round(tableFontSize(options.table, 10, 39) * 2), 12);
 });
+
+test("DOCX table cells keep bold runs, external hyperlinks and matching intrinsic widths", () => {
+    const signature =
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".repeat(2);
+    const url = "https://solscan.io/tx/" + signature;
+    const document = convertMarkdownToDocument(
+        parseMarkdownDoc(
+            ":::table max-content auto\n| Label | Details |\n|---|---|\n" +
+                "| **Wide bold label** and text | **Signature:** [" +
+                signature +
+                "](" +
+                url +
+                ") (external link) |\n:::"
+        )
+    );
+    const table = document.root.children[0];
+    assert.ok(table instanceof TableNode);
+    const result = createDocxRenderer(configuration).render([
+        { id: "table", config: { id: "table" }, content: [table] }
+    ]);
+    assert.equal(result.success, true, result.errors.join("; "));
+    const archive = readPackage(result.output);
+    const xml = readXmlPart(archive, "word/document.xml");
+    const signatureRun = [...xml.matchAll(/<w:r>[^]*?<\/w:r>/g)].find((match) =>
+        match[0].includes(">Signature:</w:t>")
+    );
+    assert.ok(signatureRun);
+    assert.ok(signatureRun[0].includes('<w:b w:val="1"/>'));
+    assert.ok(xml.includes("<w:hyperlink r:id="));
+    assert.ok(xml.includes(signature));
+    const relationships = readXmlPart(archive, "word/_rels/document.xml.rels");
+    assert.ok(relationships.includes('Target="' + url + '"'));
+    assert.ok(relationships.includes('TargetMode="External"'));
+    const widths = [...xml.matchAll(/<w:gridCol w:w="(\d+)"\/>/g)].map(
+        (match) => Number(match[1])
+    );
+    const pdf = createTwoPassPdfRenderer(configuration);
+    const state = pdf.initializeState();
+    const padding = { top: 4, right: 4, bottom: 4, left: 4 };
+    const expected = pdf.calculateColumnWidths(table, 468, 2, {
+        state,
+        fontSize: 10,
+        bodyPadding: padding,
+        headerPadding: padding,
+        borderWidth: 0.5
+    });
+    assert.deepEqual(
+        widths,
+        expected.map((value) => Math.round(value * 20))
+    );
+});
